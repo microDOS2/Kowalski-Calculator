@@ -1061,7 +1061,7 @@ function wireTips(C){
     sku: {title: 'SKU', body:()=> 'Stock Keeping Unit. The name is dynamically generated from the "Pills per pack" value.'},
     po_summary_gp: {title: 'Total Gross Profit from Order', body:()=> {
         const applyComm = $('#applyCommissionToGP').checked;
-        const totalRevenue = C.totalPacksR * C.priceR + C.totalPacksW * C.priceW + C.totalPacksD * C.priceD;
+        const totalRevenue = (C.totalPacksR * C.priceR) + (C.totalPacksW * C.priceW) + (C.totalPacksD * C.priceD);
         const totalCOGS = C.totalPacks * C.cogs;
         const commissionTotal = window.lastCommissionTotal || 0;
         
@@ -1082,6 +1082,8 @@ function wireTips(C){
     po_apply_commission_tip: {title: 'Apply Commission', body:()=> 'Check this to subtract the total calculated sales commission (for the selected period) from the "Total Gross Profit from Order" calculation. This allows you to see profit after commissions are paid.'},
     
     // New Commission Tooltips
+    comm_period_view: {title: 'Projection Period View', body:()=> 'Select the time frame for the commission projection (Daily, Weekly, etc.).'},
+    comm_orders_per_year: {title: 'Orders Per Year', body:()=> 'Set the annual run rate for orders. Projections are scaled based on this number. E.g., for weekly orders, set this to 52.'},
     sales_salaries_row_tip: {title: 'Total Sales Salaries', body:()=> 'This is the sum of all monthly base salaries from the Sales Commission Hierarchy. Check the box to include this total in the main Operating Overhead calculation for KPIs and Break-Even Analysis.'},
     comm_show_base_pay_tip: {title: 'Show Base Pay in Projections', body:()=> 'Toggle whether to include the fixed base salaries in the projection table below. Unchecking this allows you to see only the performance-based (variable) compensation costs.'},
     comm_section_main: {title: 'Sales Commission Hierarchy', body:()=> 'Model a four-tier commission structure. Overrides are "carve-outs" - each tier takes their percentage from the remainder of the previous tier.'},
@@ -1250,6 +1252,11 @@ const ALL_COLUMNS = [
     { key: 'po_netImpact', label: 'PO Net Impact on Monthly Profit', tooltip: 'The order\'s total gross profit minus total monthly overhead.' },
     { key: 'po_avgCostPerPill', label: 'PO Avg. Cost/Pill', tooltip: 'Average COGS per pill for this specific order composition.' },
     { key: 'po_avgProfitPerPill', label: 'PO Avg. GP/Pill', tooltip: 'Average gross profit per pill for this specific order composition.' },
+    // Commission Projections
+    { key: 'comm_grandTotalPayout', label: 'Comm. Total Payout', tooltip: 'The grand total commission paid out for the selected period.' },
+    { key: 'comm_pctOfRev', label: 'Comm. % of Revenue', tooltip: 'The percentage of total revenue paid out as commission.' },
+    { key: 'comm_perPack', label: 'Comm. per Pack', tooltip: 'The total commission cost allocated to a single pack.' },
+    { key: 'comm_perPill', label: 'Comm. per Pill', tooltip: 'The total commission cost allocated to a single pill.' },
     { key: 'load', label: 'Load', tooltip: 'Load this scenario\'s inputs.'}
 ];
 
@@ -1265,6 +1272,7 @@ function migrateOld(){ OLD_KEYS.forEach(k => localStorage.removeItem(k)); }
 function scenarioFromCurrent(C){
   const S = C.S;
   const poTotals = calculatePurchaseOrderTotals(C).grandTotals;
+  const commProjections = window.lastCommissionProjections || {};
   const row = {};
 
   // Meta
@@ -1337,6 +1345,12 @@ function scenarioFromCurrent(C){
   row.po_avgCostPerPill = money3(poTotals.avgCostPerPill);
   row.po_avgProfitPerPill = money3(poTotals.avgProfitPerPill);
   
+  // Commission Projections
+  row.comm_grandTotalPayout = commProjections.grandTotalPayout;
+  row.comm_pctOfRev = commProjections.pctOfRev;
+  row.comm_perPack = commProjections.commPerPack;
+  row.comm_perPill = commProjections.commPerPill;
+
   // Inputs object for restoring state
   row.__inputs = {
     skus: S.skus,
@@ -1347,7 +1361,8 @@ function scenarioFromCurrent(C){
     dDisc: S.dDisc,
     monthlyVolumes: $$('#monthlyVolumePerSku .card').map(c => ({ sku: c.querySelector('label').textContent.replace('SKU: ', ''), qty: num(c.querySelector('.monthlyVolumeSku').value) })),
     includeShip: S.includeShip,
-    shippingPerPack: S.shippingPerPack
+    shippingPerPack: S.shippingPerPack,
+    commissionState: window.getCommissionState ? window.getCommissionState() : null
   };
   return row;
 }
@@ -1423,6 +1438,10 @@ function restoreScenario(inputs){
 
   $('#oh_rows').innerHTML = '';
   (inputs.oh || []).forEach(item => $('#oh_rows').appendChild(makeOhRow(item.name, item.cost)));
+  
+  if(window.restoreCommissionState && inputs.commissionState){
+    window.restoreCommissionState(inputs.commissionState);
+  }
 
   render();
 }
@@ -1439,6 +1458,7 @@ const GROUPS = {
     'Per Pill Metrics': ['costPerPill', 'profitPerPillR', 'profitPerPillW', 'profitPerPillD', 'overheadPerPill'],
     'Break-Even Analysis': ['be_units_R', 'be_rev_R', 'be_units_W', 'be_rev_W', 'be_units_D', 'be_rev_D', 'be_units_B', 'be_rev_B'],
     'Purchase Order Analysis': ['po_totalQty', 'po_retailProfit', 'po_wholesaleProfit', 'po_distributorProfit', 'po_totalProfit', 'po_netImpact', 'po_avgCostPerPill', 'po_avgProfitPerPill'],
+    'Commission Projections': ['comm_grandTotalPayout', 'comm_pctOfRev', 'comm_perPack', 'comm_perPill']
 };
 function openCaptureModal(){
   wireTips(calc()); // Ensure tooltips are populated
@@ -1807,6 +1827,7 @@ boot();
   // ------- Order bridge -------
   let lastOrder = null; // {packsR,packsW,packsD,priceR,priceW,priceD,pillsPerPack}
   window.lastCommissionTotal = 0;
+  window.lastCommissionProjections = {}; // To store latest projection results
   function readOrderFromHidden(){
     const val = id => Number($(id))||0;
     const gv = id => { const el=$(id); return el? Number(el.value||el.textContent||0):0; };
@@ -1820,104 +1841,114 @@ boot();
 
   // ------- Dynamic role cards (with delete) -------
   let vpId=0, rsmId=0, spId=0;
-  function vpCard(name='Vice President 1', pctVal=2, base=0){
+  function vpCard(p={name:'Vice President 1', pctVal:2, base:0, chans:{R:true,W:true,D:true}}){
     const d=document.createElement('div'); d.className='card'; d.dataset.id=++vpId;
     d.innerHTML=`
       <div class="row" style="justify-content:space-between; align-items:center">
-        <strong class="vpTitle">${name}</strong>
+        <strong class="vpTitle">${p.name}</strong>
         <button class="btn danger vpRemove" title="Delete this Vice President">Remove</button>
       </div>
       <div class="grid-4">
-        <div><label>Name</label><input class="vpName" value="${name}" data-tip="comm_name"></div>
+        <div><label>Name</label><input class="vpName" value="${p.name}" data-tip="comm_name"></div>
         <div data-tip="comm_channels"><label>Channels</label>
           <div class="row">
-            <label class="row"><input class="vpR" type="checkbox" checked> Retail</label>
-            <label class="row"><input class="vpW" type="checkbox" checked> Wholesale</label>
-            <label class="row"><input class="vpD" type="checkbox" checked> Distributor</label>
+            <label class="row"><input class="vpR" type="checkbox" ${p.chans.R?'checked':''}> Retail</label>
+            <label class="row"><input class="vpW" type="checkbox" ${p.chans.W?'checked':''}> Wholesale</label>
+            <label class="row"><input class="vpD" type="checkbox" ${p.chans.D?'checked':''}> Distributor</label>
           </div>
         </div>
-        <div data-tip="comm_val"><label>Override value (%)</label><input class="vpPct" type="number" step="0.01" value="${pctVal}"></div>
-        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="vpBase" type="number" step="0.01" value="${base}"></div>
+        <div data-tip="comm_val"><label>Override value (%)</label><input class="vpPct" type="number" step="0.01" value="${p.pctVal}"></div>
+        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="vpBase" type="number" step="0.01" value="${p.base}"></div>
       </div>`;
     d.querySelector('.vpRemove').onclick=()=>{ if(true){ d.remove(); refreshAssignments(); compute(); } };
     return d;
   }
-  function rsmCard(name='Regional Sales Manager 1', pctVal=3, base=0){
+  function rsmCard(p={name:'Regional Sales Manager 1', pctVal:3, base:0, chans:{R:true,W:true,D:true}, vpId:''}){
     const d=document.createElement('div'); d.className='card'; d.dataset.id=++rsmId;
     d.innerHTML=`
       <div class="row" style="justify-content:space-between; align-items:center">
-        <strong class="rsmTitle">${name}</strong>
+        <strong class="rsmTitle">${p.name}</strong>
         <button class="btn danger rsmRemove" title="Delete this Regional Sales Manager">Remove</button>
       </div>
       <div class="grid-4">
-        <div><label>Name</label><input class="rsmName" value="${name}" data-tip="comm_name"></div>
-        <div data-tip="comm_assign_vp"><label>Assign to Vice President</label><select class="rsmVP"></select></div>
-        <div data-tip="comm_val"><label>Override value (%)</label><input class="rsmPct" type="number" step="0.01" value="${pctVal}"></div>
-        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="rsmBase" type="number" step="0.01" value="${base}"></div>
+        <div><label>Name</label><input class="rsmName" value="${p.name}" data-tip="comm_name"></div>
+        <div data-tip="comm_assign_vp"><label>Assign to Vice President</label><select class="rsmVP" data-selected="${p.vpId}"></select></div>
+        <div data-tip="comm_val"><label>Override value (%)</label><input class="rsmPct" type="number" step="0.01" value="${p.pctVal}"></div>
+        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="rsmBase" type="number" step="0.01" value="${p.base}"></div>
       </div>
       <div data-tip="comm_channels">
         <label>Channels</label>
         <div class="row">
-          <label class="row"><input class="rsmR" type="checkbox" checked> Retail</label>
-          <label class="row"><input class="rsmW" type="checkbox" checked> Wholesale</label>
-          <label class="row"><input class="rsmD" type="checkbox" checked> Distributor</label>
+          <label class="row"><input class="rsmR" type="checkbox" ${p.chans.R?'checked':''}> Retail</label>
+          <label class="row"><input class="rsmW" type="checkbox" ${p.chans.W?'checked':''}> Wholesale</label>
+          <label class="row"><input class="rsmD" type="checkbox" ${p.chans.D?'checked':''}> Distributor</label>
         </div>
       </div>`;
     d.querySelector('.rsmRemove').onclick=()=>{ if(true){ const id=d.dataset.id; d.remove(); $$('#spContainer .card').forEach(s=>{ const sel=$('.spRSM',s); if(sel.value===id){ sel.value=''; } }); refreshAssignments(); compute(); } };
     return d;
   }
-  function spCard(name='Salesperson 1', pctVal=10, base=0, share=100){
+  function spCard(p={name:'Salesperson 1', pctVal:10, base:0, share:100, chans:{R:true,W:true,D:true}, rsmId:'', bonusOrder:{amt:0,units:0,rev:0}, bonusPeriod:{amt:0,units:0,rev:0}}){
     const d=document.createElement('div'); d.className='card'; d.dataset.id=++spId;
     d.innerHTML=`
       <div class="row" style="justify-content:space-between; align-items:center">
-        <strong class="spTitle">${name}</strong>
+        <strong class="spTitle">${p.name}</strong>
         <button class="btn danger spRemove" title="Delete this Salesperson">Remove</button>
       </div>
       <div class="grid-5">
-        <div><label>Name</label><input class="spName" value="${name}" data-tip="comm_name"></div>
-        <div data-tip="comm_assign_rsm"><label>Assign to Regional Sales Manager</label><select class="spRSM"></select></div>
-        <div data-tip="comm_val"><label>Commission value (%)</label><input class="spPct" type="number" step="0.01" value="${pctVal}"></div>
-        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="spBase" type="number" step="0.01" value="${base}"></div>
-        <div data-tip="comm_sp_share"><label>Share percent of order</label><input class="spShare" type="number" step="0.01" value="${share}"></div>
+        <div><label>Name</label><input class="spName" value="${p.name}" data-tip="comm_name"></div>
+        <div data-tip="comm_assign_rsm"><label>Assign to Regional Sales Manager</label><select class="spRSM" data-selected="${p.rsmId}"></select></div>
+        <div data-tip="comm_val"><label>Commission value (%)</label><input class="spPct" type="number" step="0.01" value="${p.pctVal}"></div>
+        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="spBase" type="number" step="0.01" value="${p.base}"></div>
+        <div data-tip="comm_sp_share"><label>Share percent of order</label><input class="spShare" type="number" step="0.01" value="${p.share}"></div>
       </div>
       <div class="row" data-tip="comm_channels">
-        <label class="row"><input class="spR" type="checkbox" checked> Retail</label>
-        <label class="row"><input class="spW" type="checkbox" checked> Wholesale</label>
-        <label class="row"><input class="spD" type="checkbox" checked> Distributor</label>
+        <label class="row"><input class="spR" type="checkbox" ${p.chans.R?'checked':''}> Retail</label>
+        <label class="row"><input class="spW" type="checkbox" ${p.chans.W?'checked':''}> Wholesale</label>
+        <label class="row"><input class="spD" type="checkbox" ${p.chans.D?'checked':''}> Distributor</label>
       </div>
       <div class="grid-4" data-tip="comm_bonus_order">
-        <div><label>Order‑tied bonus amount ($)</label><input class="bonusOrderAmt" type="number" step="0.01" value="0"></div>
-        <div><label>Trigger: min units (packs)</label><input class="bonusOrderUnits" type="number" value="0"></div>
-        <div><label>Trigger: min revenue ($)</label><input class="bonusOrderRev" type="number" step="0.01" value="0"></div>
+        <div><label>Order‑tied bonus amount ($)</label><input class="bonusOrderAmt" type="number" step="0.01" value="${p.bonusOrder.amt}"></div>
+        <div><label>Trigger: min units (packs)</label><input class="bonusOrderUnits" type="number" value="${p.bonusOrder.units}"></div>
+        <div><label>Trigger: min revenue ($)</label><input class="bonusOrderRev" type="number" step="0.01" value="${p.bonusOrder.rev}"></div>
         <div></div>
       </div>
       <div class="grid-4" data-tip="comm_bonus_period">
-        <div><label>Period‑tied bonus amount ($)</label><input class="bonusPeriodAmt" type="number" step="0.01" value="0"></div>
-        <div><label>Trigger: min units (packs)</label><input class="bonusPeriodUnits" type="number" value="0"></div>
-        <div><label>Trigger: min revenue ($)</label><input class="bonusPeriodRev" type="number" step="0.01" value="0"></div>
+        <div><label>Period‑tied bonus amount ($)</label><input class="bonusPeriodAmt" type="number" step="0.01" value="${p.bonusPeriod.amt}"></div>
+        <div><label>Trigger: min units (packs)</label><input class="bonusPeriodUnits" type="number" value="${p.bonusPeriod.units}"></div>
+        <div><label>Trigger: min revenue ($)</label><input class="bonusPeriodRev" type="number" step="0.01" value="${p.bonusPeriod.rev}"></div>
         <div></div>
       </div>`;
     d.querySelector('.spRemove').onclick=()=>{ if(true){ d.remove(); refreshAssignments(); normalizeSharesEven(); compute(); } };
     d.addEventListener('input',(e)=>{ if(e.target.classList.contains('spShare')){ autoBalanceShares(e.target); compute(); } });
     return d;
   }
-  function addVP(name='Vice President 1', pctVal=2, base=0){ $('#vpContainer').appendChild(vpCard(name,pctVal,base)); refreshAssignments(); compute(); }
-  function addRSM(name='Regional Sales Manager 1', pctVal=3, base=0){ $('#rsmContainer').appendChild(rsmCard(name,pctVal,base)); refreshAssignments(); compute(); }
-  function addSP(name='Salesperson 1', pctVal=10, base=0, share=100){ $('#spContainer').appendChild(spCard(name,pctVal,base,share)); refreshAssignments(); normalizeSharesEven(); compute(); }
+  function addVP(p={name:`Vice President ${vpId+1}`, pctVal:2, base:0, chans:{R:true,W:true,D:true}}){ $('#vpContainer').appendChild(vpCard(p)); refreshAssignments(); compute(); }
+  function addRSM(p={name:`Regional Sales Manager ${rsmId+1}`, pctVal:3, base:0, chans:{R:true,W:true,D:true}, vpId:''}){ $('#rsmContainer').appendChild(rsmCard(p)); refreshAssignments(); compute(); }
+  function addSP(p={name:`Salesperson ${spId+1}`, pctVal:10, base:0, share:0, chans:{R:true,W:true,D:true}, rsmId:'', bonusOrder:{amt:0,units:0,rev:0}, bonusPeriod:{amt:0,units:0,rev:0}}){ $('#spContainer').appendChild(spCard(p)); refreshAssignments(); normalizeSharesEven(); compute(); }
 
   // Buttons
   document.addEventListener('click', e=>{
-    if(e.target && e.target.id==='addVP') addVP(`Vice President ${++vpId}`, 2, 0);
-    if(e.target && e.target.id==='addRSM') addRSM(`Regional Sales Manager ${++rsmId}`, 3, 0);
-    if(e.target && e.target.id==='addSP') addSP(`Salesperson ${++spId}`, 10, 0, 0);
+    if(e.target && e.target.id==='addVP') addVP();
+    if(e.target && e.target.id==='addRSM') addRSM();
+    if(e.target && e.target.id==='addSP') addSP();
   });
 
   // Assignment lists
   function refreshAssignments(){
     const vpOpts=['<option value="">—</option>'].concat($$('#vpContainer .card').map(v=>`<option value="${v.dataset.id}">${$('.vpName',v).value||'Vice President'}</option>`)).join('');
-    $$('#rsmContainer .card').forEach(r=>{ $('.rsmVP',r).innerHTML=vpOpts; });
+    $$('#rsmContainer .card').forEach(r=>{ 
+        const sel=$('.rsmVP',r);
+        const selected = sel.dataset.selected;
+        sel.innerHTML=vpOpts; 
+        if(selected) sel.value = selected;
+    });
     const rsmOpts=['<option value="">—</option>'].concat($$('#rsmContainer .card').map(r=>`<option value="${r.dataset.id}">${$('.rsmName',r).value||'Regional Sales Manager'}</option>`)).join('');
-    $$('#spContainer .card').forEach(s=>{ $('.spRSM',s).innerHTML=rsmOpts; });
+    $$('#spContainer .card').forEach(s=>{ 
+        const sel=$('.spRSM',s);
+        const selected = sel.dataset.selected;
+        sel.innerHTML=rsmOpts; 
+        if(selected) sel.value = selected;
+    });
     const spOpts=['<option value="">— none —</option>'].concat($$('#spContainer .card').map(s=>`<option value="${s.dataset.id}">${$('.spName',s).value||'Salesperson'}</option>`)).join('');
     $('#ownerSelect').innerHTML=spOpts;
   }
@@ -2046,12 +2077,23 @@ boot();
     window.lastCommissionTotal = grand;
 
     const periodRevenue=totalRevenue * ordersPerPeriod;
-    $('#pctOfRev').textContent = periodRevenue > 0 ? pct(100 * grand / periodRevenue) : '0.00%';
+    const pctOfRevText = periodRevenue > 0 ? pct(100 * grand / periodRevenue) : '0.00%';
+    $('#pctOfRev').textContent = pctOfRevText;
     $('#grandTotalPayout').textContent = money(grand);
     const packsInPeriod=totalPacks * ordersPerPeriod;
     const pillsInPeriod=packsInPeriod*(O.pillsPerPack||0);
-    $('#commPerPack').textContent=packsInPeriod>0?money(grand/packsInPeriod):'$0.00';
-    $('#commPerPill').textContent=pillsInPeriod>0?money(grand/pillsInPeriod):'$0.00';
+    const commPerPackText = packsInPeriod>0?money(grand/packsInPeriod):'$0.00';
+    const commPerPillText = pillsInPeriod>0?money(grand/pillsInPeriod):'$0.00';
+    $('#commPerPack').textContent=commPerPackText;
+    $('#commPerPill').textContent=commPerPillText;
+
+    // Store for scenario capture
+    window.lastCommissionProjections = {
+        grandTotalPayout: money(grand),
+        pctOfRev: pctOfRevText,
+        commPerPack: commPerPackText,
+        commPerPill: commPerPillText
+    };
   }
 
   // Reactivity
@@ -2065,12 +2107,102 @@ boot();
     if(!$('#rsmContainer')){ const wrap=document.createElement('div'); wrap.id='rsmContainer'; $('#commission_hierarchy').appendChild(wrap); }
     if(!$('#spContainer')){ const wrap=document.createElement('div'); wrap.id='spContainer'; $('#commission_hierarchy').appendChild(wrap); }
     // Add defaults
-    addVP('Vice President 1', 2, 8000);
-    addRSM('Regional Sales Manager 1', 3, 5000);
-    addSP('Salesperson 1', 10, 2500, 100);
+    addVP({name:'Vice President 1', pctVal:2, base:8000, chans:{R:true,W:true,D:true}});
+    addRSM({name:'Regional Sales Manager 1', pctVal:3, base:5000, chans:{R:true,W:true,D:true}, vpId:''});
+    addSP({name:'Salesperson 1', pctVal:10, base:2500, share:100, chans:{R:true,W:true,D:true}, rsmId:'', bonusOrder:{amt:0,units:0,rev:0}, bonusPeriod:{amt:0,units:0,rev:0}});
     $('#presBase').value = 10000;
     compute();
   })();
+
+  // State management for scenarios
+  window.getCommissionState = function(){
+    const state = {
+      pres: {
+        chans: { R:$('#presR').checked, W:$('#presW').checked, D:$('#presD').checked },
+        pct: num($('#presPct').value),
+        base: num($('#presBase').value)
+      },
+      vps: $$('#vpContainer .card').map(v => ({
+        name: $('.vpName', v).value,
+        chans: { R:$('.vpR', v).checked, W:$('.vpW', v).checked, D:$('.vpD', v).checked },
+        pctVal: num($('.vpPct', v).value),
+        base: num($('.vpBase', v).value)
+      })),
+      rsms: $$('#rsmContainer .card').map(r => ({
+        name: $('.rsmName', r).value,
+        vpId: $('.rsmVP', r).value,
+        chans: { R:$('.rsmR', r).checked, W:$('.rsmW', r).checked, D:$('.rsmD', r).checked },
+        pctVal: num($('.rsmPct', r).value),
+        base: num($('.rsmBase', r).value)
+      })),
+      sps: $$('#spContainer .card').map(s => ({
+        name: $('.spName', s).value,
+        rsmId: $('.spRSM', s).value,
+        chans: { R:$('.spR', s).checked, W:$('.spW', s).checked, D:$('.spD', s).checked },
+        pctVal: num($('.spPct', s).value),
+        base: num($('.spBase', s).value),
+        share: num($('.spShare', s).value),
+        bonusOrder: { amt: num($('.bonusOrderAmt', s).value), units: num($('.bonusOrderUnits', s).value), rev: num($('.bonusOrderRev', s).value) },
+        bonusPeriod: { amt: num($('.bonusPeriodAmt', s).value), units: num($('.bonusPeriodUnits', s).value), rev: num($('.bonusPeriodRev', s).value) }
+      })),
+      projPeriod: $('#projPeriod').value,
+      ordersPerYear: num($('#ordersPerYear').value),
+      ownerSelect: $('#ownerSelect').value,
+      showBasePay: $('#showBasePayInProjections').checked
+    };
+    return state;
+  };
+
+  window.restoreCommissionState = function(state) {
+    if (!state) return;
+    
+    // Clear existing dynamic roles
+    $('#vpContainer').innerHTML = '';
+    $('#rsmContainer').innerHTML = '';
+    $('#spContainer').innerHTML = '';
+    vpId=0; rsmId=0; spId=0;
+
+    // Restore President
+    if(state.pres){
+      $('#presR').checked = state.pres.chans.R;
+      $('#presW').checked = state.pres.chans.W;
+      $('#presD').checked = state.pres.chans.D;
+      $('#presPct').value = state.pres.pct;
+      $('#presBase').value = state.pres.base;
+    }
+
+    // Restore VPs
+    (state.vps || []).forEach(vpData => addVP(vpData));
+
+    // Restore RSMs
+    (state.rsms || []).forEach(rsmData => addRSM(rsmData));
+    
+    // Restore SPs
+    (state.sps || []).forEach(spData => addSP(spData));
+    
+    // Restore top-level settings
+    if(state.projPeriod) $('#projPeriod').value = state.projPeriod;
+    if(state.ordersPerYear) $('#ordersPerYear').value = state.ordersPerYear;
+    if(state.showBasePay != null) $('#showBasePayInProjections').checked = state.showBasePay;
+
+    // Refresh assignments which also populates dropdowns
+    refreshAssignments();
+
+    // Now set the selected values for assignments
+    (state.rsms || []).forEach((rsmData, i) => {
+        const card = $$('#rsmContainer .card')[i];
+        if (card && rsmData.vpId) $('.rsmVP', card).value = rsmData.vpId;
+    });
+     (state.sps || []).forEach((spData, i) => {
+        const card = $$('#spContainer .card')[i];
+        if (card && spData.rsmId) $('.spRSM', card).value = spData.rsmId;
+    });
+
+    if(state.ownerSelect) $('#ownerSelect').value = state.ownerSelect;
+
+    compute();
+  };
+
 })();
 </script>
 </body>
