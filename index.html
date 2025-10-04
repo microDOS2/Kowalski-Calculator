@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Channel Calculator — ALL‑IN</title>
+<style>
+  :root{ color-scheme: light dark }
+  *{ box-sizing:border-box }
+  html,body{ height:100% }
+  body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica Neue,Arial; background:Canvas; color:CanvasText; line-height:1.45 }
+  header{ position:sticky; top:0; z-index:10; padding:12px 16px; border-bottom:1px solid ButtonBorder; background:Canvas }
+  header .row{ display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap }
+  .wrap{ max-width:1680px; margin:0 auto; padding:16px; display:grid; grid-template-columns: 1.35fr 1fr; gap:16px }
+  section{ background:Field; border:1px solid ButtonBorder; border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:12px }
+  h2{ margin:0; font-size:16px; display:flex; align-items:center; gap:8px }
+  h3{ margin:10px 0 4px; font-size:14px; color:GrayText; border-bottom:1px solid ButtonBorder; padding-bottom:4px }
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+  .grid-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px }
+  .grid-4{ display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px }
+  .grid-5{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px }
+  .sku-card {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    background: color-mix(in srgb, Field 95%, CanvasText 5%);
+    border: 1px solid ButtonBorder;
+    padding: 12px;
+    border-radius: 12px;
+    grid-template-areas:
+      "name pills price price"
+      "ing inner outer ."
+      "d-cost d-packs s-cost s-packs"
+      "mix mix mix mix"
+      "rm rm rm rm";
+  }
+  .sku-card .rm { grid-area: rm; justify-self: start; }
+  label{ display:block; margin:0 0 6px; font-size:12px; color:GrayText }
+  input[type="text"],input[type="number"],select{ width:100%; padding:9px 10px; border-radius:10px; border:1px solid ButtonBorder; background:Field; color:FieldText; font-size:14px }
+  input[readonly]{ background: color-mix(in srgb, Field 92%, CanvasText 8%); color: color-mix(in srgb, FieldText 70%, CanvasText 30%) }
+  .btn{ appearance:none; border:1px solid ButtonBorder; background:ButtonFace; color:ButtonText; padding:8px 12px; border-radius:10px; font-size:13px; cursor:pointer }
+  .btn.primary{ background:AccentColor; color:AccentColorText; border-color:AccentColor }
+  .btn.small{ font-size:12px; padding:6px 10px }
+  .btn.danger{ border-color:#a00; color:#a00; background:transparent }
+  .chip{ background: color-mix(in srgb, Field 85%, CanvasText 15%); border:1px solid ButtonBorder; padding:4px 8px; border-radius:999px; font-size:12px; color: GrayText }
+  .card{ background:Field; border:1px solid ButtonBorder; border-radius:12px; padding:10px; transition: opacity 0.3s ease; display:flex; flex-direction:column; gap:10px; }
+  .kpi{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
+  .big{ font-weight:700; font-size:19px }
+  .thin{ font-variant-numeric:tabular-nums; letter-spacing:.3px }
+  .divider{ height:1px; background:ButtonBorder; margin:6px 0 }
+  .muted{ color:GrayText }
+  .w-90{ width:90px } .w-120{ width:120px } .w-160{ width:160px } .w-180{ width:180px } .w-220{ width:220px }
+  .q{ display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:999px; border:1px solid ButtonBorder; font-size:12px; color:GrayText; cursor:help; user-select:none }
+  [data-tip]{ cursor:help }
+  .tip{ position:absolute; z-index:20; max-width:560px; background:Canvas; color:CanvasText; border:1px solid ButtonBorder; border-radius:10px; padding:10px 12px; box-shadow:0 6px 24px rgba(0,0,0,.25); font-size:12px; line-height:1.4; display:none }
+  .tip h3{ margin:0 0 6px; font-size:12px; color:GrayText }
+  table{ width:100%; border-collapse:collapse; font-size:13px }
+  th,td{ padding:8px 10px; border-bottom:1px solid ButtonBorder; text-align:right; white-space:nowrap }
+  th:first-child,td:first-child{ text-align:left }
+  #thirdPartySection details {
+    border: 1px solid ButtonBorder;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    background: color-mix(in srgb, Field 95%, CanvasText 5%);
+  }
+  #thirdPartySection summary {
+    padding: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #thirdPartySection summary:hover {
+    background: color-mix(in srgb, Field 90%, CanvasText 10%);
+  }
+  #thirdPartySection .company-content {
+    padding: 0 10px 10px;
+  }
+  #thirdPartySection table {
+    font-size: 12px;
+  }
+  #thirdPartySection table td, #thirdPartySection table th {
+    padding: 6px 8px;
+  }
+  #thirdPartySection input[type="number"] {
+    width: 120px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  #thirdPartyCostSummary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .owner{ font-weight:700 }
+  #skuRows { display: flex; flex-direction: column; gap: 10px; }
+  #orderComposition { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+  #monthlyVolumePerSku { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+</style>
+</head><body>
+<header>
+  <div class="row">
+    <div class="row" style="gap:8px">
+      <strong>Channel Calculator — ALL‑IN</strong>
+      <span class="chip" id="fmt_demo">Money format…</span>
+      <span class="chip" id="status">Ready</span>
+    </div>
+    <div class="row">
+      <button id="btn_choose_cols" class="btn">Choose columns</button>
+      <select id="capture_sel" class="w-220"><option value="__full__">Full analytics (default)</option></select>
+      <label class="row"><input id="autoCalc" type="checkbox" checked> Auto‑recalculate</label>
+      <button id="recalcBtn" class="btn primary">Calculate / Recalculate</button>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+  <section>
+    <h2>Product Specifications <span class="q" data-tip="prod">?</span></h2>
+    <div id="skuRows">
+      <!-- SKU rows will be generated by JS -->
+    </div>
+    <div class="row"><button class="btn" id="add_sku">Add SKU</button></div>
+    <div class="grid-3">
+      <div><label>Blended Packaging cost <span class="q" data-tip="packCost">?</span></label><input id="packCostPerPack" data-tip="packCost" type="text" value="$0" readonly></div>
+      <div><label>Blended Display cost <span class="q" data-tip="dispCost">?</span></label><input id="dispCostPerPack" data-tip="dispCost" type="text" value="$0" readonly></div>
+      <div><label>Blended Shipping Box cost <span class="q" data-tip="shipBoxCost">?</span></label><input id="shipBoxCostPerPack" data-tip="shipBoxCost" type="text" value="$0" readonly></div>
+    </div>
+    <div class="row"><span class="muted">Hover any <b>?</b> or <b>result value</b> for the formula with your numbers</span></div>
+    <div class="divider"></div>
+    <h2>Order Composition <span class="q" data-tip="orderComp">?</span></h2>
+     <div class="row">
+        <div><label>Order total $ Amount</label><input id="orderTotalDisplay1" type="text" readonly></div>
+    </div>
+    <div id="orderComposition">
+        <!-- Order composition fields will be generated by JS -->
+    </div>
+    <div class="row"><button class="btn" id="calc_order">Calculate Order</button></div>
+    <div class="divider"></div>
+    <h2>Ingredients <span class="q" data-tip="ingredients">?</span></h2>
+    <div id="ingredients" class="grid-4"></div>
+    <div class="row"><button class="btn" id="add_ing">Add ingredient</button><span class="muted">Name • milligrams per pill • cost per milligram</span></div>
+    <div class="grid-2">
+      <div class="card"><div class="muted">Blended ingredient cost per pack <span class="q" data-tip="k_ing">?</span></div><div id="kpi_ing" data-tip="k_ing" class="big thin">$0</div></div>
+      <div class="card"><div class="muted">Blended cost of goods per pack <span class="q" data-tip="k_cogs">?</span></div><div id="kpi_cogs" data-tip="k_cogs" class="big thin">$0</div></div>
+      <div class="card"><div class="muted">Ingredient Cost per milligram <span class="q" data-tip="k_mg">?</span></div><div id="kpi_costmg" data-tip="k_mg" class="big thin">$0</div></div>
+      <div class="card"><div class="muted">Ingredient Cost per gram <span class="q" data-tip="k_g">?</span></div><div id="kpi_costg" data-tip="k_g" class="big thin">$0</div></div>
+    </div>
+  </section>
+  <section>
+    <h2>Sales Channels <span class="q" data-tip="channels">?</span></h2>
+    <div class="row" style="justify-content: space-between;">
+        <div class="row" id="channel_toggles">
+          <label class="row"><input id="includeR" type="checkbox" checked> Include Retail</label>
+          <label class="row"><input id="includeW" type="checkbox" checked> Include Wholesale</label>
+          <label class="row"><input id="includeD" type="checkbox" checked> Include Distributor</label>
+        </div>
+    </div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><strong data-tip="ch_retail">Retail</strong><span class="muted">Price = Retail</span></div>
+        <div class="row">
+          <div><label>Gross margin %</label><input id="gmR" data-tip="gmR" class="w-120" type="text" value="0%" readonly></div>
+          <div><label>Revenue / pack</label><input id="revR" data-tip="revR" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+        <div class="row">
+          <div><label>Gross profit / pack</label><input id="gpR" data-tip="gpR" class="w-120" type="text" value="$0" readonly></div>
+          <div><label>Operating profit / pack</label><input id="opR" data-tip="opR" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+        <div class="row">
+          <div><label>Operating margin %</label><input id="omR" data-tip="omR" class="w-120" type="text" value="0%" readonly></div>
+           <div><label>Cost per Pill</label><input id="costPerPillR" data-tip="costPerPillR" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+        <div class="row">
+            <div><label>Profit per Pill</label><input id="profitPerPillR" data-tip="profitPerPillR" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+        <div class="row">
+          <div><label>Shipping per pack (USD) <span class="q" data-tip="shipCost">?</span></label><input id="shippingPerPack" class="w-120" type="number" step="0.01" value="2.50" data-tip="shipCost_input"></div>
+          <label class="row"><input id="includeShip" type="checkbox" checked> Include shipping</label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><strong data-tip="ch_wholesale">Wholesale</strong><span class="muted">Retail − Discount</span></div>
+        <div class="row">
+          <div><label>Wholesale discount %</label><input id="wDisc" class="w-120" type="number" step="0.01" value="50" data-tip="wDisc_input"></div>
+           <div><label>Gross margin %</label><input id="gmW" data-tip="gmW" class="w-120" type="text" value="0%" readonly></div>
+        </div>
+        <div class="row">
+          <div><label>Wholesale price / pack</label><input id="wPrice" data-tip="priceW" class="w-120" type="text" value="$0" readonly></div>
+          <div><label>Gross profit / pack</label><input id="gpW" data-tip="gpW" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+        <div class="row">
+          <div><label>Retailer profit / pack</label><input id="retailerProfit" data-tip="retailerProfit" class="w-120" type="text" value="$0" readonly></div>
+          <div><label>Operating profit / pack</label><input id="opW" data-tip="opW" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+        <div class="row">
+          <div><label>Operating margin %</label><input id="omW" data-tip="omW" class="w-120" type="text" value="0%" readonly></div>
+            <div><label>Cost per Pill</label><input id="costPerPillW" data-tip="costPerPillW" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+         <div class="row">
+            <div><label>Profit per Pill</label><input id="profitPerPillW" data-tip="profitPerPillW" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><strong data-tip="ch_distributor">Distributor</strong><span class="muted">Wholesale − Discount</span></div>
+        <div class="row">
+          <div><label>Distributor discount %</label><input id="dDisc" class="w-120" type="number" step="0.01" value="25" data-tip="dDisc_input"></div>
+           <div><label>Gross margin %</label><input id="gmD" data-tip="gmD" class="w-120" type="text" value="0%" readonly></div>
+        </div>
+        <div class="row">
+          <div><label>Distributor price / pack</label><input id="dPrice" data-tip="priceD" class="w-120" type="text" value="$0" readonly></div>
+          <div><label>Gross profit / pack</label><input id="gpD" data-tip="gpD" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+        <div class="row">
+          <div><label>Distributor profit / pack</label><input id="distProfit" data-tip="distProfit" class="w-120" type="text" value="$0" readonly></div>
+          <div><label>Operating profit / pack</label><input id="opD" data-tip="opD" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+        <div class="row">
+          <div><label>Operating margin %</label><input id="omD" data-tip="omD" class="w-120" type="text" value="0%" readonly></div>
+          <div><label>Cost per Pill</label><input id="costPerPillD" data-tip="costPerPillD" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+        <div class="row">
+            <div><label>Profit per Pill</label><input id="profitPerPillD" data-tip="profitPerPillD" class="w-120" type="text" value="$0" readonly></div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="divider"></div>
+    <h2>Monthly Costs (Operating Overhead) <span id="oh_total" class="chip" data-tip="oh_total_tip">Total: $0</span><span class="q" data-tip="overhead">?</span></h2>
+    <label class="row" data-tip="includeThirdParty_tip"><input id="includeThirdParty" type="checkbox"> Include Third Party Costs in Overhead</label>
+    <div class="card">
+        <label>Monthly Pack Volume per SKU</label>
+        <div id="monthlyVolumePerSku"></div>
+        <div class="grid-2">
+            <div><label>Total Monthly Volume</label><input id="monthlyVolume" type="text" value="0" data-tip="monthlyVolume_total" readonly></div>
+            <div><label>Overhead per Pill</label><input id="overheadPerPill" data-tip="overheadPerPill" type="text" value="$0" readonly></div>
+        </div>
+    </div>
+    <div id="tp_overhead_row" class="row" style="display:none;" data-tip="tp_overhead_row_tip">
+        <input class="w-160" type="text" value="Third Party Costs" readonly> 
+        <input id="tp_overhead_cost" class="w-120" type="text" value="$0.00" readonly>
+    </div>
+    <div id="sales_salaries_row" class="row" data-tip="sales_salaries_row_tip">
+        <input class="w-160" type="text" value="Total Sales Salaries" readonly>
+        <input id="total_sales_salaries_monthly" class="w-120" type="text" value="$0.00" readonly>
+        <label class="row"><input id="includeSalesSalaries" type="checkbox" checked> Include in Overhead</label>
+    </div>
+    <div id="oh_rows"></div>
+    <div class="row"><button class="btn" id="add_oh">Add overhead item</button><span class="muted">Name • Monthly cost</span></div>
+    <div class="grid-3">
+        <div>
+            <label class="row"><input id="ohR" type="checkbox" checked> Include overhead in Retail</label>
+        </div>
+        <div>
+            <label class="row"><input id="ohW" type="checkbox" checked> Include overhead in Wholesale</label>
+        </div>
+        <div>
+            <label class="row"><input id="ohD" type="checkbox" checked> Include overhead in Distributor</label>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+    <h2>Break-Even Analysis <span class="q" data-tip="be_section">?</span></h2>
+    <div class="row" style="justify-content: space-between;">
+        <label class="row"><input id="be_include_overhead" type="checkbox" checked> Include Monthly Overhead in Calculation</label>
+    </div>
+    <div class="grid-2">
+        <div class="card">
+            <div class="muted">Retail Break-Even <span class="q" data-tip="be_retail">?</span></div>
+            <div id="be_retail" class="big thin">—</div>
+        </div>
+        <div class="card">
+            <div class="muted">Wholesale Break-Even <span class="q" data-tip="be_wholesale">?</span></div>
+            <div id="be_wholesale" class="big thin">—</div>
+        </div>
+        <div class="card">
+            <div class="muted">Distributor Break-Even <span class="q" data-tip="be_distributor">?</span></div>
+            <div id="be_distributor" class="big thin">—</div>
+        </div>
+        <div class="card">
+            <div class="muted">Blended Break-Even <span class="q" data-tip="be_blended">?</span></div>
+            <div id="be_blended" class="big thin">—</div>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+    <h2>Blended Key Performance Indicators</h2>
+    <div id="blended_kpis">
+        <div class="kpi">
+          <div class="card"><div class="muted">Blended revenue per pack <span class="q" data-tip="brev">?</span></div><div id="kpi_brev" data-tip="brev" class="big thin">$0</div></div>
+          <div class="card"><div class="muted">Blended gross profit per pack <span class="q" data-tip="bgpp">?</span></div><div id="kpi_bgpp" data-tip="bgpp" class="big thin">$0</div></div>
+          <div class="card"><div class="muted">Blended gross margin (percent) <span class="q" data-tip="bgmp">?</span></div><div id="kpi_bgmp" data-tip="bgmp" class="big thin">0%</div></div>
+        </div>
+        <div class="kpi">
+          <div class="card"><div class="muted">Overhead per pack <span class="q" data-tip="ohpp">?</span></div><div id="kpi_ohpp" data-tip="ohpp" class="big thin">$0</div></div>
+          <div class="card"><div class="muted">Blended operating profit per pack <span class="q" data-tip="bopp">?</span></div><div id="kpi_bopp" data-tip="bopp" class="big thin">$0</div></div>
+          <div class="card"><div class="muted">Blended operating margin (percent) <span class="q" data-tip="bomp">?</span></div><div id="kpi_bomp" data-tip="bomp" class="big thin">0%</div></div>
+        </div>
+    </div>
+    <div id="blended_kpi_warning" class="card" style="display:none; text-align:center; color:GrayText;">Please select at least one sales channel to calculate Blended KPIs.</div>
+
+  </section>
+  <!-- START: Purchase Orders Section -->
+  <section style="grid-column:1 / -1">
+    <h2>Purchase Order Analysis <span class="q" data-tip="po_section">?</span></h2>
+    <div class="row">
+        <div><label>Order total $ Amount</label><input id="orderTotalDisplay2" type="text" readonly></div>
+    </div>
+     <div class="row">
+        <label class="row" data-tip="po_apply_commission_tip"><input id="applyCommissionToGP" type="checkbox"> Apply Sales Commission to Gross Profit</label>
+    </div>
+    <div id="po-unified-content">
+      <!-- Unified PO content will be rendered here by JS -->
+    </div>
+  </section>
+  <!-- END: Purchase Orders Section -->
+  
+  <!-- ===== Sales Commission Hierarchy (drop‑in) ===== -->
+    <section id="commission_hierarchy" style="grid-column:1 / -1">
+      <h2>Sales Commission Hierarchy <span class="q" data-tip="comm_section_main">?</span></h2>
+
+      <!-- President (cannot be deleted) -->
+      <div class="card" data-tip="comm_pres_tier">
+        <h3>President of Sales</h3>
+        <div class="grid-4">
+          <div data-tip="comm_channels"><label>Include channels</label>
+            <div class="row">
+              <label class="row"><input id="presR" type="checkbox" checked> Retail</label>
+              <label class="row"><input id="presW" type="checkbox" checked> Wholesale</label>
+              <label class="row"><input id="presD" type="checkbox" checked> Distributor</label>
+            </div>
+          </div>
+          <div data-tip="comm_type"><label>Override type</label>
+            <select id="presType"><option>% of Gross Revenue</option></select>
+          </div>
+          <div data-tip="comm_val"><label>Override value (%)</label><input id="presPct" type="number" step="0.01" value="1"></div>
+          <div data-tip="comm_base"><label>Base Salary (per month)</label><input id="presBase" type="number" step="0.01" value="0"></div>
+        </div>
+      </div>
+
+      <!-- Vice Presidents -->
+      <div class="card" data-tip="comm_vp_tier">
+        <div class="row" style="justify-content:space-between; align-items:center">
+          <h3>Vice Presidents of Sales</h3>
+          <button id="addVP" class="btn" title="Add another Vice President role">Add Vice President</button>
+        </div>
+        <div id="vpContainer"></div>
+      </div>
+
+      <!-- Regional Sales Managers -->
+      <div class="card" data-tip="comm_rsm_tier">
+        <div class="row" style="justify-content:space-between; align-items:center">
+          <h3>Regional Sales Managers</h3>
+          <button id="addRSM" class="btn" title="Add another Regional Sales Manager role">Add Regional Sales Manager</button>
+        </div>
+        <div id="rsmContainer"></div>
+      </div>
+
+      <!-- Salespersons with splits -->
+      <div class="card" data-tip="comm_sp_tier">
+        <div class="row" style="justify-content:space-between; align-items:center">
+          <h3>Salespersons (splits supported)</h3>
+          <button id="addSP" class="btn" title="Add another Salesperson">Add Salesperson</button>
+        </div>
+        <div class="muted">Enter <strong>Share percent</strong> per salesperson. Total will auto‑balance to <strong>100%</strong>. If all are zero, the engine even‑splits.</div>
+        <div id="spContainer"></div>
+      </div>
+    </section>
+
+    <!-- ===== Commission Projections (drop‑in) ===== -->
+    <section id="commission_projections" style="grid-column:1 / -1">
+      <h2>Commission Projections</h2>
+       <div class="row">
+        <div><label>Order total $ Amount</label><input id="orderTotalDisplay3" type="text" readonly></div>
+    </div>
+      <div class="row">
+        <div class="w-160" data-tip="comm_period_view"><label>Projection Period</label>
+          <select id="projPeriod"><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option selected>Yearly</option></select>
+        </div>
+        <div class="w-160" data-tip="comm_orders_per_year"><label>Orders Per Year</label>
+            <input id="ordersPerYear" type="number" value="1">
+        </div>
+        <div style="min-width:280px" data-tip="comm_owner_select">
+          <label>Order Owner (for reporting emphasis)</label>
+          <select id="ownerSelect"><option value="">— none —</option></select>
+        </div>
+         <label class="row" data-tip="comm_show_base_pay_tip"><input id="showBasePayInProjections" type="checkbox" checked> Show Base Pay in Projections</label>
+      </div>
+      <div class="muted">(Calculations are based on the selected period and annual order count)</div>
+      <div id="proj_table_hierarchical" style="overflow:auto; max-height:460px">
+        <table>
+          <thead>
+            <tr>
+              <th data-tip="comm_proj_role">Role / Name</th>
+              <th data-tip="comm_proj_base">Base Pay</th>
+              <th data-tip="comm_proj_bonus">Bonuses</th>
+              <th data-tip="comm_proj_override">Override</th>
+              <th data-tip="comm_proj_total">Total Pay</th>
+            </tr>
+          </thead>
+          <tbody id="proj_body_hierarchical"></tbody>
+          <tfoot>
+            <tr>
+              <td data-tip="comm_proj_pct_rev">Total Commission percent of Revenue</td>
+              <td colspan="4" id="pctOfRev" style="text-align:right">0.00%</td>
+            </tr>
+            <tr>
+              <td><strong>Grand Total Payout</strong></td>
+              <td colspan="4" id="grandTotalPayout" style="text-align:right; font-weight:bold;">$0.00</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="row">
+        <div class="card" data-tip="comm_kpi_per_pack"><div class="muted">Commission per pack</div><div id="commPerPack">$0.00</div></div>
+        <div class="card" data-tip="comm_kpi_per_pill"><div class="muted">Commission per pill</div><div id="commPerPill">$0.00</div></div>
+      </div>
+    </section>
+
+  <!-- START: Third Party Companies Section -->
+  <section id="thirdPartySection" style="grid-column:1 / -1">
+    <h2>Third Party Companies <span class="q" data-tip="thirdParty_section">?</span></h2>
+    <div id="thirdPartyCompaniesContainer"></div>
+    <div id="thirdPartyCostSummary">
+        <div class="card">
+            <div class="muted">Total Monthly Cost <span class="q" data-tip="tp_monthly">?</span></div>
+            <div id="tp_monthly_cost" class="big thin">$0.00</div>
+        </div>
+        <div class="card">
+            <div class="muted">Total Weekly Cost <span class="q" data-tip="tp_weekly">?</span></div>
+            <div id="tp_weekly_cost" class="big thin">$0.00</div>
+        </div>
+        <div class="card">
+            <div class="muted">Total Daily Cost <span class="q" data-tip="tp_daily">?</span></div>
+            <div id="tp_daily_cost" class="big thin">$0.00</div>
+        </div>
+    </div>
+  </section>
+  <!-- END: Third Party Companies Section -->
+  <section style="grid-column:1 / -1">
+    <div class="row" style="justify-content:space-between; align-items:flex-end">
+      <div>
+        <h2>Scenarios (v7) <span class="q" data-tip="scenarios">?</span></h2>
+        <div class="muted">Save inputs & a comprehensive set of outputs. Use "Choose columns" to customize.</div>
+      </div>
+      <div class="row">
+        <input id="scenario_label" class="w-160" type="text" placeholder="Scenario label">
+        <button id="btn_save" class="btn primary">Save scenario</button>
+        <button id="btn_csv" class="btn">Download CSV</button>
+        <button id="btn_clear" class="btn">Clear all</button>
+      </div>
+    </div>
+    <div class="scroller" style="max-height:420px; overflow:auto">
+      <table id="scenarios_tbl">
+        <thead id="scenarios_head"></thead>
+        <tbody id="scenarios_body"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<div id="tip" class="tip"></div>
+<div id="modal" style="display:none; position:fixed; inset:0; background:color-mix(in srgb, Canvas 70%, CanvasText 30%); align-items:center; justify-content:center; z-index:50">
+  <div style="background:Field; border:1px solid ButtonBorder; border-radius:16px; padding:16px; width:min(980px, 92vw); max-height:85vh; overflow:auto; display:flex; flex-direction:column; gap:12px">
+    <div class="row" style="justify-content:space-between"><strong>Choose columns to capture</strong><button id="modal_close" class="btn small">Close</button></div>
+    <div id="cols_groups" class="grid-3" style="align-items: flex-start;"></div>
+    <div class="row" style="justify-content:flex-end">
+      <input id="cap_name" class="w-220" placeholder="Name this capture (e.g., Sales Focus)">
+      <button id="save_capture" class="btn primary">Save capture</button>
+    </div>
+  </div>
+</div>
+<script>
+// ===== Utilities =====
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+function num(v){ const x = Number(v); return isFinite(x)? x : 0 }
+function pct(x){ if(!isFinite(x)||x===0) return '0%'; return (x*100).toFixed(1).replace(/\.0$/, '')+'%' }
+function money(n) { return '$' + (Number(n) || 0).toFixed(2); }
+function money3(n){ const x = Number(n||0); const s = Math.abs(x).toFixed(3); let out = s.replace(/\.([0-9]{2})0$/, '.$1'); out = out.replace(/\.00$/, ''); out = out.replace(/\B(?=(\d{3})+(?!\d))/g, ','); return (x<0?'-':'')+'$'+out }
+(function(){ const demo=[12,12.5,12.345,12.340,0].map(money3).join(' · '); $('#fmt_demo').textContent='Formatter: '+demo })();
+// ===== Tooltip engine =====
+const TIP = $('#tip');
+const tooltips = {};
+let LATEST_CALC = {}; // Holds the latest calculation results
+function showTip(key, evt){
+    const target = evt.target.closest('[data-tip], .q');
+    if (!target) return;
+    const tipKey = target.getAttribute('data-tip');
+    const t = tooltips[tipKey];
+    if(!t) return;
+    TIP.innerHTML = '<h3>'+t.title+'</h3><div>'+t.body(target)+'</div>';
+    const r=target.getBoundingClientRect();
+    TIP.style.display='block';
+    TIP.style.top=(r.top+window.scrollY+r.height+6)+'px';
+    TIP.style.left=Math.min(r.left+window.scrollX+10, window.scrollX+window.innerWidth-TIP.offsetWidth-20)+'px'
+}
+function hideTip(){ TIP.style.display='none' }
+function initializeTooltipEvents() {
+    document.body.addEventListener('mouseover', (e) => {
+        if (e.target.closest('[data-tip], .q')) {
+            showTip(null, e);
+        }
+    });
+    document.body.addEventListener('mouseout', (e) => {
+        if (e.target.closest('[data-tip], .q')) {
+            hideTip();
+        }
+    });
+    document.body.addEventListener('focusin', (e) => {
+        if (e.target.closest('[data-tip], .q')) {
+            showTip(null, e);
+        }
+    });
+    document.body.addEventListener('focusout', (e) => {
+        if (e.target.closest('[data-tip], .q')) {
+            hideTip();
+        }
+    });
+}
+// ===== Dynamic rows builders =====
+function makeIngRow(name='', mg='', usdmg=''){
+  const d=document.createElement('div'); d.className='row';
+  d.innerHTML = '<input class="w-160 ingName" placeholder="Ingredient" value="'+name+'" data-tip="ingName_input"> <input class="w-120 ingMg" type="number" step="0.0001" placeholder="mg/pill" value="'+mg+'" data-tip="ingMg_input"> <input class="w-120 ingUsdMg" type="number" step="0.000001" placeholder="$ / mg" value="'+usdmg+'" data-tip="ingUsdMg_input"> <button class="btn small rm">Remove</button>';
+  d.querySelector('.rm').onclick = ()=>{ d.remove(); if($('#autoCalc').checked) render() };
+  return d;
+}
+function makeOhRow(name='', cost=''){
+  const d=document.createElement('div'); d.className='row';
+  d.innerHTML = '<input class="w-160 ohName" placeholder="Name" value="'+name+'" data-tip="ohName_input"> <input class="w-120 ohCost" type="number" step="0.01" placeholder="$/month" value="'+cost+'" data-tip="ohCost_input"> <button class="btn small rm">Remove</button>';
+  d.querySelector('.rm').onclick = ()=>{ d.remove(); if($('#autoCalc').checked) render() };
+  return d;
+}
+function makeSkuRow(p){
+  const d = document.createElement('div');
+  d.className='sku-card';
+  d.innerHTML = `
+    <div style="grid-area: name"><label>SKU</label><input class="skuName" type="text" value="${p.sku}" readonly data-tip="sku"></div>
+    <div style="grid-area: pills"><label>Pills/pack</label><input class="pills" type="number" value="${p.pills}" data-tip="pills_input"></div>
+    <div style="grid-area: price"><label>Retail price/pack</label><input class="retailPrice" type="number" step="0.01" value="${p.price}" data-tip="price_input"></div>
+    
+    <div style="grid-area: ing"><label>Ingredient Cost/pack</label><input class="ingCostSku" type="text" value="$0" data-tip="ingCostSku" readonly></div>
+    <div style="grid-area: inner"><label>Inner Pkg Cost</label><input class="innerPkgCost" type="number" step="0.01" value="${p.innerPkg}" data-tip="innerPkgCost_input"></div>
+    <div style="grid-area: outer"><label>Outer Box Cost</label><input class="outerBoxCost" type="number" step="0.01" value="${p.outerBox}" data-tip="outerBoxCost_input"></div>
+    
+    <div style="grid-area: d-cost"><label>Display Box Cost</label><input class="displayBoxCost" type="number" step="0.01" value="${p.displayBox}" data-tip="displayBoxCost_input"></div>
+    <div style="grid-area: d-packs"><label>Packs per Display</label><input class="packsPerDisplay" type="number" value="${p.packsPerDisplay}" data-tip="packsPerDisplay_input"></div>
+    <div style="grid-area: s-cost"><label>Shipping Box Cost</label><input class="shippingBoxCost" type="number" step="0.01" value="${p.shippingBox}" data-tip="shippingBoxCost_input"></div>
+    <div style="grid-area: s-packs"><label>Packs per Ship Box</label><input class="packsPerShipBox" type="number" value="${p.packsPerShipBox}" data-tip="packsPerShipBox_input"></div>
+
+    <div style="grid-area: mix" class="grid-3" data-tip="sku_mix_input">
+      <div><label>% Retail</label><input class="skuMixR" type="number" value="${p.mixR}"></div>
+      <div><label>% Wholesale</label><input class="skuMixW" type="number" value="${p.mixW}"></div>
+      <div><label>% Distributor</label><input class="skuMixD" type="number" value="${p.mixD}"></div>
+    </div>
+
+    <div class="rm"><button class="btn small">Remove</button></div>
+  `;
+  d.querySelector('.rm button').onclick = () => { d.remove(); updateOrderComposition(); updateMonthlyVolumeInputs(); if($('#autoCalc').checked) render(); };
+  return d;
+}
+function makeOrderRow(sku, qty=0){
+  const d = document.createElement('div'); d.className='card';
+  d.innerHTML = `<div><label>SKU: ${sku}</label><input class="orderQty" type="number" value="${qty}" data-tip="orderQty_input"></div>`;
+  return d;
+}
+function makeMonthlyVolumeRow(sku, qty = 1) {
+    const d = document.createElement('div');
+    d.className = 'card';
+    d.innerHTML = `<div><label>SKU: ${sku}</label><input class="monthlyVolumeSku" type="number" value="${qty}" data-sku-name="${sku}" data-tip="monthlyVolume_sku_input"></div>`;
+    return d;
+}
+// ===== Wire add buttons =====
+$('#add_ing').onclick = ()=>{ $('#ingredients').appendChild(makeIngRow()); if($('#autoCalc').checked) render() };
+$('#add_oh').onclick = ()=>{ $('#oh_rows').appendChild(makeOhRow()); if($('#autoCalc').checked) render() };
+$('#add_sku').onclick = ()=>{ 
+    const newPills = 10;
+    $('#skuRows').appendChild(makeSkuRow({
+        sku: `${newPills}-pack`,
+        pills: newPills,
+        price: 57.50,
+        innerPkg: 1.75,
+        outerBox: 1.75,
+        displayBox: 0,
+        packsPerDisplay: 1,
+        shippingBox: 1.5,
+        packsPerShipBox: 1,
+        mixR: 100,
+        mixW: 0,
+        mixD: 0
+    })); 
+    updateOrderComposition(); 
+    updateMonthlyVolumeInputs();
+    if($('#autoCalc').checked) render(); 
+};
+$('#calc_order').onclick = render;
+// ===== State + math =====
+function getState(){
+  const S={};
+  S.skus = $$('#skuRows .sku-card').map(r => ({
+    sku: r.querySelector('.skuName').value,
+    pills: num(r.querySelector('.pills').value),
+    retailPrice: num(r.querySelector('.retailPrice').value),
+    innerPkgCost: num(r.querySelector('.innerPkgCost').value),
+    outerBoxCost: num(r.querySelector('.outerBoxCost').value),
+    displayBoxCost: num(r.querySelector('.displayBoxCost').value),
+    packsPerDisplay: Math.max(1, num(r.querySelector('.packsPerDisplay').value)),
+    shippingBoxCost: num(r.querySelector('.shippingBoxCost').value),
+    packsPerShipBox: Math.max(1, num(r.querySelector('.packsPerShipBox').value)),
+    mixR: num(r.querySelector('.skuMixR').value),
+    mixW: num(r.querySelector('.skuMixW').value),
+    mixD: num(r.querySelector('.skuMixD').value),
+  }));
+  S.order = $$('#orderComposition .card').map(r => ({
+    sku: r.querySelector('label').textContent.replace('SKU: ', ''),
+    qty: num(r.querySelector('.orderQty').value)
+  }));
+  S.includeShip = $('#includeShip').checked;
+  S.shippingPerPack = num($('#shippingPerPack').value);
+  S.wDisc = num($('#wDisc').value);
+  S.dDisc = num($('#dDisc').value);
+  S.ohR = $('#ohR').checked; S.ohW = $('#ohW').checked; S.ohD = $('#ohD').checked;
+  S.monthlyVolume = $$('#monthlyVolumePerSku .monthlyVolumeSku').reduce((total, input) => total + num(input.value), 0);
+  S.ing = $$('#ingredients .row').map(r=>({ mg:num(r.querySelector('.ingMg').value), usdmg:num(r.querySelector('.ingUsdMg').value) }));
+  S.oh = $$('#oh_rows .row').map(r=> ({ name: r.querySelector('.ohName').value, cost: num(r.querySelector('.ohCost').value) }));
+  S.includeThirdParty = $('#includeThirdParty').checked;
+  return S;
+}
+function calc(){
+  const S = getState();
+  const thirdPartyTotal = calculateThirdPartyCosts(true);
+  const manualOhTotal = S.oh.reduce((a, x) => a + x.cost, 0);
+
+  let salesSalariesTotal = 0;
+  const includeSalesSalaries = $('#includeSalesSalaries');
+  if (includeSalesSalaries && includeSalesSalaries.checked) {
+      const salariesInput = $('#total_sales_salaries_monthly');
+      if (salariesInput) {
+          salesSalariesTotal = parseFloat(salariesInput.value.replace('$', '').replace(/,/g, '')) || 0;
+      }
+  }
+
+  const ohTotal = manualOhTotal + (S.includeThirdParty ? thirdPartyTotal : 0) + salesSalariesTotal;
+
+  let totalPacks = 0, totalPills = 0, totalIngCost = 0, totalPackCost = 0, totalDispCost = 0, totalShipBoxCost = 0;
+  let totalRevenueR = 0, totalRevenueW = 0, totalRevenueD = 0;
+  let totalGpR = 0, totalGpW = 0, totalGpD = 0;
+  let totalPacksR = 0, totalPacksW = 0, totalPacksD = 0;
+
+  S.order.forEach(orderItem => {
+    const sku = S.skus.find(s => s.sku === orderItem.sku);
+    if (!sku || orderItem.qty <= 0) return;
+
+    const orderQty = orderItem.qty;
+    totalPacks += orderQty;
+    totalPills += sku.pills * orderQty;
+
+    const ingPerPack = S.ing.reduce((a, x) => a + (x.mg * sku.pills * x.usdmg), 0);
+    const packPerPack = sku.innerPkgCost + sku.outerBoxCost;
+    const dispPerPack = sku.displayBoxCost / sku.packsPerDisplay;
+    const shipBoxPerPack = sku.shippingBoxCost / sku.packsPerShipBox;
+    const cogsPerPack = ingPerPack + packPerPack + dispPerPack + shipBoxPerPack;
+
+    totalIngCost += ingPerPack * orderQty;
+    totalPackCost += packPerPack * orderQty;
+    totalDispCost += dispPerPack * orderQty;
+    totalShipBoxCost += shipBoxPerPack * orderQty;
+    
+    const packsR = orderQty * (sku.mixR / 100);
+    const packsW = orderQty * (sku.mixW / 100);
+    const packsD = orderQty * (sku.mixD / 100);
+
+    totalPacksR += packsR;
+    totalPacksW += packsW;
+    totalPacksD += packsD;
+
+    const priceR = sku.retailPrice;
+    const priceW = priceR * (1 - S.wDisc / 100);
+    const priceD = priceW * (1 - S.dDisc / 100);
+
+    totalRevenueR += priceR * packsR;
+    totalRevenueW += priceW * packsW;
+    totalRevenueD += priceD * packsD;
+
+    totalGpR += (priceR - cogsPerPack) * packsR;
+    totalGpW += (priceW - cogsPerPack) * packsW;
+    totalGpD += (priceD - cogsPerPack) * packsD;
+  });
+
+  const avgIngPerPack = totalPacks > 0 ? totalIngCost / totalPacks : 0;
+  const avgPackPerPack = totalPacks > 0 ? totalPackCost / totalPacks : 0;
+  const avgDispPerPack = totalPacks > 0 ? totalDispCost / totalPacks : 0;
+  const avgShipBoxPerPack = totalPacks > 0 ? totalShipBoxCost / totalPacks : 0;
+  const cogs = avgIngPerPack + avgPackPerPack + avgDispPerPack + avgShipBoxPerPack;
+
+  const avgPriceR = totalPacksR > 0 ? totalRevenueR / totalPacksR : 0;
+  const avgPriceW = totalPacksW > 0 ? totalRevenueW / totalPacksW : 0;
+  const avgPriceD = totalPacksD > 0 ? totalRevenueD / totalPacksD : 0;
+
+  const gpR = totalPacksR > 0 ? totalGpR / totalPacksR : 0;
+  const gpW = totalPacksW > 0 ? totalGpW / totalPacksW : 0;
+  const gpD = totalPacksD > 0 ? totalGpD / totalPacksD : 0;
+
+  const gmR = avgPriceR > 0 ? gpR / avgPriceR : 0;
+  const gmW = avgPriceW > 0 ? gpW / avgPriceW : 0;
+  const gmD = avgPriceD > 0 ? gpD / avgPriceD : 0;
+  
+  const totalMonthlyVolume = Math.max(1, S.monthlyVolume);
+  const ohPerPack = totalMonthlyVolume > 0 ? ohTotal / totalMonthlyVolume : 0;
+
+  const ohPerPackR = S.ohR ? ohPerPack : 0;
+  const ohPerPackW = S.ohW ? ohPerPack : 0;
+  const ohPerPackD = S.ohD ? ohPerPack : 0;
+  const shipPerPack = S.includeShip ? S.shippingPerPack : 0;
+
+  const opR = gpR - ohPerPackR - shipPerPack;
+  const opW = gpW - ohPerPackW;
+  const opD = gpD - ohPerPackD;
+
+  const omR = avgPriceR > 0 ? opR / avgPriceR : 0;
+  const omW = avgPriceW > 0 ? opW / avgPriceW : 0;
+  const omD = avgPriceD > 0 ? opD / avgPriceD : 0;
+
+  const totalRevenue = totalRevenueR + totalRevenueW + totalRevenueD;
+  const totalGp = totalGpR + totalGpW + totalGpD;
+  
+  const totalOpR = totalGpR - (ohPerPackR * totalPacksR) - (shipPerPack * totalPacksR);
+  const totalOpW = totalGpW - (ohPerPackW * totalPacksW);
+  const totalOpD = totalGpD - (ohPerPackD * totalPacksD);
+  const totalOp = totalOpR + totalOpW + totalOpD;
+
+  const brev = totalPacks > 0 ? totalRevenue / totalPacks : 0;
+  const bgpp = totalPacks > 0 ? totalGp / totalPacks : 0;
+  const bopp = totalPacks > 0 ? totalOp / totalPacks : 0;
+  const bgmp = brev > 0 ? bgpp / brev : 0;
+  const bomp = brev > 0 ? bopp / brev : 0;
+  
+  const retailerProfit = avgPriceR - avgPriceW;
+  const distProfit = avgPriceW - avgPriceD;
+
+  const weightedPillsPerPack = totalPacks > 0 ? totalPills / totalPacks : 0;
+  const totalMgPerPack = S.ing.reduce((a, x) => a + x.mg * weightedPillsPerPack, 0);
+  const costPerMg = totalMgPerPack > 0 ? avgIngPerPack / totalMgPerPack : 0;
+  const costPerGram = costPerMg * 1000;
+  
+  const costPerPill = weightedPillsPerPack > 0 ? cogs / weightedPillsPerPack : 0;
+  const profitPerPillR = weightedPillsPerPack > 0 ? opR / weightedPillsPerPack : 0;
+  const profitPerPillW = weightedPillsPerPack > 0 ? opW / weightedPillsPerPack : 0;
+  const profitPerPillD = weightedPillsPerPack > 0 ? opD / weightedPillsPerPack : 0;
+  const overheadPerPill = weightedPillsPerPack > 0 ? ohPerPack / weightedPillsPerPack : 0;
+  
+  const beIncludeOverhead = $('#be_include_overhead').checked;
+  const totalFixedCosts = beIncludeOverhead ? ohTotal : 0;
+  const be_units_R = opR > 0 ? totalFixedCosts / opR : Infinity;
+  const be_units_W = opW > 0 ? totalFixedCosts / opW : Infinity;
+  const be_units_D = opD > 0 ? totalFixedCosts / opD : Infinity;
+  const be_units_B = bopp > 0 ? totalFixedCosts / bopp : Infinity;
+  const be_rev_R = be_units_R * avgPriceR;
+  const be_rev_W = be_units_W * avgPriceW;
+  const be_rev_D = be_units_D * avgPriceD;
+  const be_rev_B = be_units_B * brev;
+
+  const weightedRetailPrice = brev; // For backward compatibility in some tips maybe
+  
+  LATEST_CALC = { S, ingPerPack: avgIngPerPack, packPerPack: avgPackPerPack, dispPerPack: avgDispPerPack, weightedShippingBoxCost: avgShipBoxPerPack, cogs, priceR: avgPriceR, priceW: avgPriceW, priceD: avgPriceD, gpR, gpW, gpD, gmR, gmW, gmD, ohPerPack, ohPerPackR, ohPerPackW, ohPerPackD, shipPerPack, opR, opW, opD, omR, omW, omD, brev, bgpp, bopp, bgmp, bomp, retailerProfit, distProfit, costPerMg, costPerGram, totalFixedCosts, be_units_R, be_units_W, be_units_D, be_units_B, be_rev_R, be_rev_W, be_rev_D, be_rev_B, ohTotal, totalPacks, totalPacksR, totalPacksW, totalPacksD, totalPills, weightedRetailPrice, weightedPillsPerPack, costPerPill, profitPerPillR, profitPerPillW, profitPerPillD, overheadPerPill, totalMonthlyVolume, thirdPartyTotal, totalRevenue };
+  return LATEST_CALC;
+}
+function updateOrderComposition(){
+    const currentQuantities = {};
+    $$('#orderComposition .card').forEach(card => {
+        const skuName = card.querySelector('label').textContent.replace('SKU: ', '');
+        const qty = num(card.querySelector('.orderQty').value);
+        currentQuantities[skuName] = qty;
+    });
+
+    const skus = $$('#skuRows .sku-card').map(r => r.querySelector('.skuName').value);
+    const container = $('#orderComposition');
+    container.innerHTML = '';
+
+    skus.forEach(skuName => {
+        const savedQty = currentQuantities[skuName] || 0;
+        container.appendChild(makeOrderRow(skuName, savedQty));
+    });
+}
+function updateMonthlyVolumeInputs() {
+    const currentVolumes = {};
+    $$('#monthlyVolumePerSku .card').forEach(card => {
+        const skuName = card.querySelector('label').textContent.replace('SKU: ', '');
+        const qty = num(card.querySelector('.monthlyVolumeSku').value);
+        currentVolumes[skuName] = qty;
+    });
+
+    const skus = $$('#skuRows .sku-card').map(r => r.querySelector('.skuName').value);
+    const container = $('#monthlyVolumePerSku');
+    container.innerHTML = '';
+
+    skus.forEach(skuName => {
+        const savedQty = currentVolumes[skuName] || 1;
+        container.appendChild(makeMonthlyVolumeRow(skuName, savedQty));
+    });
+}
+function render(){
+  // New commission module must run first to expose its totals
+  if (window.projectionSetOrder) {
+    const C_pre = calc(); // run a pre-calculation
+    const orderData = {
+      packsR: C_pre.totalPacksR,
+      packsW: C_pre.totalPacksW,
+      packsD: C_pre.totalPacksD,
+      priceR: C_pre.priceR,
+      priceW: C_pre.priceW,
+      priceD: C_pre.priceD,
+      pillsPerPack: C_pre.weightedPillsPerPack
+    };
+    window.projectionSetOrder(orderData);
+  }
+
+  const C = calc();
+  const { S } = C;
+  
+  // Per-SKU Ingredient Cost
+  $$('#skuRows .sku-card').forEach(row => {
+    const pills = num(row.querySelector('.pills').value);
+    const ingPerPill = S.ing.reduce((a, x) => a + (x.mg * x.usdmg), 0);
+    const ingCost = ingPerPill * pills;
+    row.querySelector('.ingCostSku').value = money3(ingCost);
+  });
+
+  // Third party cost UI update
+  calculateThirdPartyCosts();
+  
+  // Third party cost inclusion
+  const tpOverheadRow = $('#tp_overhead_row');
+  if (S.includeThirdParty) {
+    tpOverheadRow.style.display = 'flex';
+    $('#tp_overhead_cost').value = money(C.thirdPartyTotal);
+  } else {
+    tpOverheadRow.style.display = 'none';
+  }
+
+  updateMonthlyVolumeInputs();
+  $('#packCostPerPack').value = money3(C.packPerPack);
+  $('#dispCostPerPack').value = money3(C.dispPerPack);
+  $('#shipBoxCostPerPack').value = money3(C.weightedShippingBoxCost);
+  $('#kpi_ing').textContent = money3(C.ingPerPack);
+  $('#kpi_cogs').textContent = money3(C.cogs);
+  $('#kpi_costmg').textContent = C.costPerMg > 0 ? money3(C.costPerMg) : '$0';
+  $('#kpi_costg').textContent = C.costPerGram > 0 ? money(C.costPerGram) : '$0';
+  $('#wPrice').value = money3(C.priceW);
+  $('#dPrice').value = money3(C.priceD);
+  $('#revR').value = money3(C.priceR);
+  $('#gpR').value = money3(C.gpR); $('#gmR').value = pct(C.gmR);
+  $('#gpW').value = money3(C.gpW); $('#gmW').value = pct(C.gmW);
+  $('#gpD').value = money3(C.gpD); $('#gmD').value = pct(C.gmD);
+  $('#opR').value = money3(C.opR); $('#omR').value = pct(C.omR);
+  $('#opW').value = money3(C.opW); $('#omW').value = pct(C.omW);
+  $('#opD').value = money3(C.opD); $('#omD').value = pct(C.omD);
+  $('#retailerProfit').value = money3(C.retailerProfit);
+  $('#distProfit').value = money3(C.distProfit);
+
+  // Per Pill Metrics
+  $('#costPerPillR').value = money3(C.costPerPill);
+  $('#profitPerPillR').value = money3(C.profitPerPillR);
+  $('#costPerPillW').value = money3(C.costPerPill);
+  $('#profitPerPillW').value = money3(C.profitPerPillW);
+  $('#costPerPillD').value = money3(C.costPerPill);
+  $('#profitPerPillD').value = money3(C.profitPerPillD);
+  $('#overheadPerPill').value = money3(C.overheadPerPill);
+  $('#monthlyVolume').value = C.totalMonthlyVolume.toLocaleString();
+  
+  $('#orderTotalDisplay1').value = money(C.totalRevenue);
+  $('#orderTotalDisplay2').value = money(C.totalRevenue);
+  $('#orderTotalDisplay3').value = money(C.totalRevenue);
+
+  const showBlended = C.totalPacks > 0;
+  $('#blended_kpis').style.display = showBlended ? 'block' : 'none';
+  $('#blended_kpi_warning').style.display = showBlended ? 'none' : 'block';
+  if (showBlended) {
+      $('#kpi_brev').textContent = money3(C.brev);
+      $('#kpi_bgpp').textContent = money3(C.bgpp);
+      $('#kpi_bgmp').textContent = pct(C.bgmp);
+      $('#kpi_ohpp').textContent = money3(C.ohPerPack);
+      $('#kpi_bopp').textContent = money3(C.bopp);
+      $('#kpi_bomp').textContent = pct(C.bomp);
+  }
+  // Render Break-Even
+  const formatRetailBE = (units, rev, pillsPerPack, packsPerDisplay) => {
+      if (!isFinite(units)) return 'Unprofitable';
+      const totalPills = Math.ceil(units) * pillsPerPack;
+      return `
+          <div class="big thin">${Math.ceil(units).toLocaleString()} packs</div>
+          <div class="muted" style="font-size:12px;">
+              (${totalPills.toLocaleString()} pills)<br>
+              ${money(rev)}
+          </div>
+      `;
+  };
+  const formatMasterPackBE = (units, rev, unitType, packsPerUnit) => {
+      if (!isFinite(units)) return 'Unprofitable';
+      const masterUnits = units / packsPerUnit;
+      return `
+          <div class="big thin">${masterUnits.toFixed(2)}</div>
+          <div>${unitType}</div>
+          <div class="muted" style="font-size:12px;">
+              (${Math.ceil(units).toLocaleString()} individual packs)<br>
+              ${money(rev)}
+          </div>
+      `;
+  };
+  const formatBlendedBE = (units, rev, skusInOrder) => {
+      if (!isFinite(units)) return 'Unprofitable';
+      let breakdown = '';
+      let totalPacksR = 0, totalPacksW = 0, totalPacksD = 0;
+      
+      skusInOrder.forEach(item => {
+          const sku = S.skus.find(s => s.sku === item.sku);
+          if (sku) {
+            totalPacksR += item.qty * (sku.mixR / 100);
+            totalPacksW += item.qty * (sku.mixW / 100);
+            totalPacksD += item.qty * (sku.mixD / 100);
+          }
+      });
+      
+      const totalMixPacks = totalPacksR + totalPacksW + totalPacksD;
+      if (totalMixPacks === 0) return 'No sales mix defined.';
+
+      const finalPacksR = Math.ceil(units * (totalPacksR / totalMixPacks));
+      const finalPacksW = Math.ceil(units * (totalPacksW / totalMixPacks));
+      const finalPacksD = Math.ceil(units * (totalPacksD / totalMixPacks));
+
+      return `
+          <div class="big thin">${Math.ceil(units).toLocaleString()} total packs</div>
+          <div class="muted" style="font-size:12px; text-align:left;">
+              Retail: ${finalPacksR.toLocaleString()} packs<br>
+              Wholesale: ${finalPacksW.toLocaleString()} packs<br>
+              Distributor: ${finalPacksD.toLocaleString()} packs<br>
+              <b>Total Revenue: ${money(rev)}</b>
+          </div>
+      `;
+  };
+  $('#be_retail').innerHTML = formatRetailBE(C.be_units_R, C.be_rev_R, C.weightedPillsPerPack);
+  $('#be_wholesale').innerHTML = formatMasterPackBE(C.be_units_W, C.be_rev_W, 'WHOLESALE master packs', 100);
+  $('#be_distributor').innerHTML = formatMasterPackBE(C.be_units_D, C.be_rev_D, 'MASTER DISTRIBUTOR PACKS', 5000);
+  $('#be_blended').innerHTML = formatBlendedBE(C.be_units_B, C.be_rev_B, S.order);
+  $('#oh_total').textContent = `Total: ${money(C.ohTotal)}`;
+
+  // Render Purchase Orders
+  calculatePurchaseOrders(C);
+  // tooltips
+  wireTips(C);
+  // scenarios UI
+  drawScenarioTableHeaders();
+  drawScenarioRows();
+  $('#status').textContent = 'Calculated ' + new Date().toLocaleString();
+}
+function wireTips(C){
+  const S=C.S; const ship = S.includeShip? money3(C.shipPerPack)+' per pack' : '$0 not included';
+  const beIncludeOverhead = $('#be_include_overhead').checked;
+  const beFixedCosts = beIncludeOverhead ? 'Total Fixed Costs' : '$0 (Overhead Excluded)';
+  
+  const tips = {
+    prod:{title:'Product specs', body:()=> 'Define your product SKUs here. All calculations below are based on the weighted average of the SKUs in the "Order Composition".'},
+    pills:{title:'Pills per pack', body:()=> 'Weighted average: '+C.weightedPillsPerPack.toFixed(2)+' pills/pack'},
+    price:{title:'Retail price', body:()=> 'Weighted average: = <b>'+money3(C.priceR)+'</b>'},
+    packCost:{title:'Blended Packaging/pack', body:()=> 'This is the weighted average packaging cost (inner + outer) per pack, based on your "Order Composition" and the per-SKU packaging costs.'},
+    dispCost:{title:'Blended Display/pack', body:()=> 'This is the weighted average amortized display cost per pack, based on your "Order Composition" and the per-SKU display costs and packs per display.'},
+    shipBoxCost: {title:'Blended Shipping Box/pack', body:()=> 'This is the weighted average amortized shipping box cost per pack, based on your "Order Composition" and the per-SKU shipping box costs.'},
+    ingredients:{title:'Ingredients', body:()=> 'Define the components of a single pill here.'},
+    ingCostSku: {title: 'Ingredient Cost per SKU', body: (target) => {
+        const row = target.closest('.sku-card');
+        if (!row) return '...';
+        const pills = num(row.querySelector('.pills').value);
+        const ingPerPill = C.S.ing.reduce((a, x) => a + (x.mg * x.usdmg), 0);
+        const ingCost = ingPerPill * pills;
+        return `Total ingredient cost for one pill (${money3(ingPerPill)}) × ${pills} pills in this pack = <b>${money3(ingCost)}</b>`;
+    }},
+    k_ing:{title:'Blended ingredient cost / pack', body:()=> 'This is the weighted average ingredient cost per pack based on your "Order Composition". = <b>'+money3(C.ingPerPack)+'</b>'},
+    k_cogs:{title:'Blended COGS / pack', body:()=> `Blended Cost of Goods Sold, weighted by "Order Composition".<br>${money3(C.ingPerPack)} (Ingredients) + ${money3(C.packPerPack)} (Packaging) + ${money3(C.dispPerPack)} (Display) + ${money3(C.weightedShippingBoxCost)} (Shipping Box) = <b>${money3(C.cogs)}</b>`},
+    k_mg:{title:'Ingredient Cost $/mg & $/kg', body:()=> { const mg=C.S.ing.reduce((a,x)=>a+x.mg*C.weightedPillsPerPack,0); if(!mg) return '—'; const mgString = `${money3(C.ingPerPack)} / ${mg.toFixed(0)} mg = <b>${money3(C.costPerMg)}/mg</b>`; const kgString = `${money(C.costPerGram)}/g × 1000 = <b>${money(C.costPerGram * 1000)}/kg</b>`; return `${mgString}<br>${kgString}`; }},
+    k_g:{title:'Ingredient Cost $/gram', body:()=> { const mg=C.S.ing.reduce((a,x)=>a+x.mg*C.weightedPillsPerPack,0); return mg? money3(C.costPerMg)+' × 1000 = <b>'+money(C.costPerGram)+'</b>':'—' }},
+    channels:{title:'Channels', body:()=> 'Wholesale/Distributor apply discounts to the weighted average Retail price.'},
+    priceW:{title:'Wholesale price', body:()=> money3(C.priceR)+' × (1 − '+C.S.wDisc.toFixed(2)+'%) = <b>'+money3(C.priceW)+'</b>'},
+    priceD:{title:'Distributor price', body:()=> money3(C.priceW)+' (Wholesale) × (1 − '+C.S.dDisc.toFixed(2)+'%) = <b>'+money3(C.priceD)+'</b>'},
+    gpR:{title:'Retail GP/pack', body:()=> money3(C.priceR)+' − '+money3(C.cogs)+' = <b>'+money3(C.gpR)+'</b>'},
+    gpW:{title:'Wholesale GP/pack', body:()=> money3(C.priceW)+' − '+money3(C.cogs)+' = <b>'+money3(C.gpW)+'</b>'},
+    gpD:{title:'Distributor GP/pack', body:()=> money3(C.priceD)+' − '+money3(C.cogs)+' = <b>'+money3(C.gpD)+'</b>'},
+    gmR:{title:'Retail GM%', body:()=> money3(C.gpR)+' / '+money3(C.priceR)+' = <b>'+pct(C.gmR)+'</b>'},
+    gmW:{title:'Wholesale GM%', body:()=> money3(C.gpW)+' / '+money3(C.priceW)+' = <b>'+pct(C.gmW)+'</b>'},
+    gmD:{title:'Distributor GM%', body:()=> money3(C.gpD)+' / '+money3(C.priceD)+' = <b>'+pct(C.gmD)+'</b>'},
+    opR:{title:'Retail OP/pack', body:()=> `${money3(C.gpR)} - ${money3(C.ohPerPackR)} (Overhead) - ${ship} = <b>${money3(C.opR)}</b>`},
+    opW:{title:'Wholesale OP/pack', body:()=> `${money3(C.gpW)} - ${money3(C.ohPerPackW)} (Overhead) = <b>${money3(C.opW)}</b>`},
+    opD:{title:'Distributor OP/pack', body:()=> `${money3(C.gpD)} - ${money3(C.ohPerPackD)} (Overhead) = <b>${money3(C.opD)}</b>`},
+    omR:{title:'Retail OM%', body:()=> money3(C.opR)+' / '+money3(C.priceR)+' = <b>'+pct(C.omR)+'</b>'},
+    omW:{title:'Wholesale OM%', body:()=> money3(C.opW)+' / '+money3(C.priceW)+' = <b>'+pct(C.omW)+'</b>'},
+    omD:{title:'Distributor OM%', body:()=> money3(C.opD)+' / '+money3(C.priceD)+' = <b>'+pct(C.omD)+'</b>'},
+    costPerPillR: {title: 'Cost Per Pill (Retail)', body:()=> `Total COGS per Pack / Weighted Pills per Pack.<br>${money3(C.cogs)} / ${C.weightedPillsPerPack.toFixed(2)} = <b>${money3(C.costPerPill)}</b>`},
+    profitPerPillR: {title: 'Profit Per Pill (Retail)', body:()=> `Operating Profit per Pack / Weighted Pills per Pack.<br>${money3(C.opR)} / ${C.weightedPillsPerPack.toFixed(2)} = <b>${money3(C.profitPerPillR)}</b>`},
+    costPerPillW: {title: 'Cost Per Pill (Wholesale)', body:()=> `Total COGS per Pack / Weighted Pills per Pack.<br>${money3(C.cogs)} / ${C.weightedPillsPerPack.toFixed(2)} = <b>${money3(C.costPerPill)}</b>`},
+    profitPerPillW: {title: 'Profit Per Pill (Wholesale)', body:()=> `Operating Profit per Pack / Weighted Pills per Pack.<br>${money3(C.opW)} / ${C.weightedPillsPerPack.toFixed(2)} = <b>${money3(C.profitPerPillW)}</b>`},
+    costPerPillD: {title: 'Cost Per Pill (Distributor)', body:()=> `Total COGS per Pack / Weighted Pills per Pack.<br>${money3(C.cogs)} / ${C.weightedPillsPerPack.toFixed(2)} = <b>${money3(C.costPerPill)}</b>`},
+    profitPerPillD: {title: 'Profit Per Pill (Distributor)', body:()=> `Operating Profit per Pack / Weighted Pills per Pack.<br>${money3(C.opD)} / ${C.weightedPillsPerPack.toFixed(2)} = <b>${money3(C.profitPerPillD)}</b>`},
+    overheadPerPill: {title: 'Overhead Per Pill', body:()=> `Overhead per Pack / Weighted Pills per Pack.<br>${money3(C.ohPerPack)} / ${C.weightedPillsPerPack.toFixed(2)} = <b>${money3(C.overheadPerPill)}</b>`},
+    po_summary_cost_pill: {title: 'Average Cost per Pill', body:()=> 'The average cost (COGS) per pill for this entire purchase order.'},
+    po_summary_profit_pill: {title: 'Average Profit per Pill', body:()=> 'The average gross profit per pill for this entire purchase order.'},
+    brev:{title:'Blended revenue/pack', body:()=> 'The average revenue per pack across all SKUs and channels in the order.'},
+    bgpp:{title:'Blended GP/pack', body:()=> 'The average gross profit per pack across all SKUs and channels in the order.'},
+    bgmp:{title:'Blended GM%', body:()=> money3(C.bgpp)+' / '+money3(C.brev)+' = <b>'+pct(C.bgmp)+'</b>'},
+    ohpp:{title:'Overhead / pack', body:()=> 'Total Monthly Overhead / Total Monthly Pack Volume<br>'+money(C.ohTotal)+' / '+C.S.monthlyVolume.toLocaleString()+' = <b>'+money3(C.ohPerPack)+'</b>'},
+    bopp:{title:'Blended OP/pack', body:()=> 'The average operating profit per pack across all SKUs and channels in the order, after overhead.'},
+    bomp:{title:'Blended OM%', body:()=> money3(C.bopp)+' / '+money3(C.brev)+' = <b>'+pct(C.bomp)+'</b>'},
+    scenarios:{title:'Scenarios', body:()=> 'v7 storage with timestamps. Use Choose columns to define capture.'},
+    revR: {title:'Retail Revenue/pack', body:()=> 'This is the weighted average retail price per pack. = <b>'+money3(C.priceR)+'</b>'},
+    retailerProfit: {title: 'Retailer Profit/pack', body:()=> 'The profit the retailer makes on a wholesale transaction.<br>'+money3(C.priceR)+' (Retail) - '+money3(C.priceW)+' (Wholesale Price) = <b>'+money3(C.retailerProfit)+'</b>'},
+    distProfit: {title: 'Distributor Profit/pack', body:()=> 'The profit the distributor makes.<br>'+money3(C.priceW)+' (Wholesale) - '+money3(C.priceD)+' (Distributor Price) = <b>'+money3(C.distProfit)+'</b>'},
+    shipCost: {title: 'Shipping Cost', body:()=> 'Cost to ship a single retail order.'},
+    overhead: {title: 'Monthly Overhead', body:()=> 'Fixed monthly business costs (salaries, rent, etc.).'},
+    oh_total_tip: {title: 'Overhead Allocation', body:()=> { return `The total overhead of <b>${money(C.ohTotal)}</b> is allocated based on the monthly pack volume.`}},
+    includeThirdParty_tip: {title: 'Include Third Party Costs', body:()=>'Check this to add the "Total Monthly Cost" from the Third Party Companies section to your Operating Overhead.'},
+    tp_overhead_row_tip: {title: 'Third Party Costs', body:()=>'This is the sum of all monthly costs from the "included" third-party companies below. It is being added to your total overhead.'},
+    pills_input: {title: 'Input: Pills per pack', body:()=> 'Enter the number of pills in each retail pack.'},
+    price_input: {title: 'Input: Retail price', body:()=> 'Enter the final consumer price for one pack.'},
+    innerPkgCost_input: {title: 'Input: Inner Package Cost', body:()=> 'Cost of the primary container for the pills (e.g., bottle, blister pack).'},
+    outerBoxCost_input: {title: 'Input: Outer Box Cost', body:()=> 'Cost of the branded retail box for a single pack.'},
+    displayBoxCost_input: {title: 'Input: Display Box Cost', body:()=> 'Cost of the larger box used for retail display.'},
+    packsPerDisplay_input: {title: 'Input: Packs per Display', body:()=> 'How many individual packs fit into one Display Box?'},
+    shippingBoxCost_input: {title: 'Input: Shipping Box Cost', body:()=> 'Cost of the master carton used for shipping.'},
+    packsPerShipBox_input: {title: 'Input: Packs per Shipping Box', body:()=> 'How many individual packs fit into one shipping box?'},
+    sku_mix_input: {title: 'Input: SKU Channel Mix %', body:()=> 'Define the percentage of sales for THIS SKU that go through each channel. The three percentages must add up to 100.'},
+    wDisc_input: {title: 'Input: Wholesale Discount %', body:()=> {
+      const wDisc = num($('#wDisc').value);
+      if (wDisc === 50) {
+        return 'KEYSTONE PRICING';
+      }
+      return 'Discount off retail price for wholesale customers.';
+    }},
+    dDisc_input: {title: 'Input: Distributor Discount %', body:()=> 'Discount off WHOLESALE price for distributors.'},
+    shipCost_input: {title: 'Input: Shipping per pack', body:()=> 'Enter the shipping cost for a single retail pack.'},
+    monthlyVolume_sku_input: {title: 'Input: Monthly Volume for SKU', body:()=> `Enter the projected monthly sales volume for this specific SKU.`},
+    monthlyVolume_total: {title: 'Total Monthly Volume', body:()=> `This is the sum of all individual SKU monthly volumes.`},
+    ingName_input: {title: 'Input: Ingredient Name', body:()=> 'Name of the ingredient.'},
+    ingMg_input: {title: 'Input: Milligrams per Pill', body:()=> 'How many milligrams of this ingredient are in one pill.'},
+    ingUsdMg_input: {title: 'Input: Cost per Milligram', body:()=> 'The cost for one milligram of this ingredient.'},
+    ohName_input: {title: 'Input: Overhead Item Name', body:()=> 'Name of the monthly overhead cost (e.g., Salaries).'},
+    ohCost_input: {title: 'Input: Monthly Cost', body:()=> 'The total cost for this item per month.'},
+    ch_retail: {title: 'Retail Channel', body:()=> 'Direct-to-consumer sales at full retail price.'},
+    ch_wholesale: {title: 'Wholesale Channel', body:()=> 'Sales to retailers at a discounted price.'},
+    ch_distributor: {title: 'Distributor Channel', body:()=> 'Sales to distributors at a secondary discount, calculated from the Wholesale Price.'},
+    thirdParty_section: {title: 'Third Party Companies', body:()=> 'Model costs from various third-party service providers. Check the "Include" box for a company to add its costs to the total calculation.'},
+    tp_monthly: {title: 'Total Monthly Cost', body:()=> 'The sum of all monthly costs from the "included" third-party companies.'},
+    tp_weekly: {title: 'Total Weekly Cost', body:()=> 'The total monthly cost divided by 4.33 (average weeks in a month).'},
+    tp_daily: {title: 'Total Daily Cost', body:()=> 'The total monthly cost divided by 30.44 (average days in a month).'},
+    be_section: {title: 'Break-Even Analysis', body:()=> `Calculates the units needed to cover fixed costs. A "Pack" is the base retail unit, containing ${C.weightedPillsPerPack.toFixed(2)} pills on average. A "WHOLESALE master pack" = 100 packs. A "MASTER DISTRIBUTOR PACK" = 5000 packs.`},
+    be_retail: {title: 'Retail Break-Even', body:()=> `${beFixedCosts} / Retail Operating Profit per Pack`},
+    be_wholesale: {title: 'Wholesale Break-Even', body:()=> `${beFixedCosts} / Wholesale Operating Profit per Pack`},
+    be_distributor: {title: 'Distributor Break-Even', body:()=> `${beFixedCosts} / Distributor Operating Profit per Pack`},
+    be_blended: {title: 'Blended Break-Even', body:()=> `${beFixedCosts} / Blended Operating Profit per Pack`},
+    po_section: {title: 'Purchase Order Analysis', body:()=> 'Calculates total cost and profit for the entire order specified in the "Order Composition" section, based on the specific channel mix assigned to each SKU.'},
+    orderComp: {title: 'Order Composition', body:()=> 'Specify quantities for each SKU. This order mix drives all calculations in the sheet.'},
+    orderQty_input: {title: 'Input: Order Quantity', body:()=> 'Enter the number of packs for this SKU in the order.'},
+    sku: {title: 'SKU', body:()=> 'Stock Keeping Unit. The name is dynamically generated from the "Pills per pack" value.'},
+    po_summary_gp: {title: 'Total Gross Profit from Order', body:()=> {
+        const applyComm = $('#applyCommissionToGP').checked;
+        const totalRevenue = C.totalPacksR * C.priceR + C.totalPacksW * C.priceW + C.totalPacksD * C.priceD;
+        const totalCOGS = C.totalPacks * C.cogs;
+        const commissionTotal = window.lastCommissionTotal || 0;
+        
+        let profit = totalRevenue - totalCOGS;
+        let formula = `Revenue (${money(totalRevenue)}) - COGS (${money(totalCOGS)}) = <b>${money(profit)}</b>`;
+        
+        if(applyComm) {
+            profit -= commissionTotal;
+            formula = `(Revenue - COGS) - Commissions (${money(commissionTotal)}) = <b>${money(profit)}</b>`;
+        }
+        return formula;
+    }},
+    po_summary_oh: {title: 'Total Monthly Overhead', body:()=> 'The total fixed monthly costs for the business (e.g., rent, salaries).'},
+    po_summary_net: {title: 'Net Impact on Monthly Profit', body:()=> {
+        const poData = calculatePurchaseOrderTotals(C);
+        return `This shows how much this single order contributes to covering the fixed monthly costs.<br><b>${money(poData.grandTotals.totalProfit)}</b> (Blended Gross Profit) - <b>${money(C.ohTotal)}</b> (Monthly Overhead) = <b>${money(poData.grandTotals.totalProfit - C.ohTotal)}</b>`;
+    }},
+    po_apply_commission_tip: {title: 'Apply Commission', body:()=> 'Check this to subtract the total calculated sales commission (for the selected period) from the "Total Gross Profit from Order" calculation. This allows you to see profit after commissions are paid.'},
+    
+    // New Commission Tooltips
+    sales_salaries_row_tip: {title: 'Total Sales Salaries', body:()=> 'This is the sum of all monthly base salaries from the Sales Commission Hierarchy. Check the box to include this total in the main Operating Overhead calculation for KPIs and Break-Even Analysis.'},
+    comm_show_base_pay_tip: {title: 'Show Base Pay in Projections', body:()=> 'Toggle whether to include the fixed base salaries in the projection table below. Unchecking this allows you to see only the performance-based (variable) compensation costs.'},
+    comm_section_main: {title: 'Sales Commission Hierarchy', body:()=> 'Model a four-tier commission structure. Overrides are "carve-outs" - each tier takes their percentage from the remainder of the previous tier.'},
+    comm_pres_tier: {title: 'President of Sales', body:()=> 'The top-level executive. Earns an override on the revenue remainder after all lower tiers have been paid.'},
+    comm_vp_tier: {title: 'VPs of Sales', body:()=> 'Vice Presidents earn an override on the revenue remainder after their assigned Salespersons and Regional Sales Managers have been paid.'},
+    comm_rsm_tier: {title: 'Regional Sales Managers', body:()=> 'Regional Sales Managers earn an override on the revenue remainder after their assigned Salespersons have been paid.'},
+    comm_sp_tier: {title: 'Salespersons', body:()=> 'The front-line sales team. Their commission is calculated first from the gross revenue they are responsible for.'},
+    comm_name: {title: 'Name', body:()=> 'Enter a name for this role or individual.'},
+    comm_channels: {title: 'Applicable Channels', body:()=> 'Select the sales channels that this person\'s commission or override applies to. Only revenue from these channels will be included in their calculation.'},
+    comm_type: {title: 'Commission/Override Type', body:()=> 'Currently supports "% of Gross Revenue". The percentage is taken from the revenue (or the remainder after a lower tier is paid).'},
+    comm_val: {title: 'Commission/Override Value', body:()=> 'Enter the percentage value for this role\'s commission or override.'},
+    comm_base: {title: 'Base Salary (Monthly)', body:()=> 'Enter the fixed monthly salary for this individual. This amount will be automatically converted to the correct value for the selected projection period (Daily, Weekly, or Yearly).'},
+    comm_assign_vp: {title: 'Assign to VP', body:()=> 'Assign this Regional Sales Manager to a specific Vice President. Their team\'s performance will roll up to this VP.'},
+    comm_assign_rsm: {title: 'Assign to RSM', body:()=> 'Assign this Salesperson to a specific Regional Sales Manager.'},
+    comm_sp_share: {title: 'Share Percent', body:()=> 'The percentage of the total order revenue this salesperson is responsible for. All salesperson shares will auto-balance to 100%.'},
+    comm_bonus_order: {title: 'Order-Tied Bonus', body:()=> 'A bonus paid for each individual order that meets the specified unit or revenue thresholds.'},
+    comm_bonus_period: {title: 'Period-Tied Bonus', body:()=> 'A bonus paid once per projection period (e.g., once a month) if the total volume for that period meets the specified thresholds.'},
+    comm_owner_select: {title: 'Order Owner', body:()=> 'Select a salesperson to highlight them in the projection table. This is for reporting emphasis only and does not affect calculations.'},
+    comm_proj_role: {title: 'Role / Name', body:()=> 'The individual\'s role and name in the hierarchy.'},
+    comm_proj_base: {title: 'Base Pay', body:()=> 'The fixed salary for the selected projection period, automatically converted from the entered monthly salary.'},
+    comm_proj_bonus: {title: 'Bonuses', body:()=> 'The sum of all order-tied and period-tied bonuses earned during the selected projection period.'},
+    comm_proj_override: {title: 'Override/Commission', body:()=> 'The performance-based pay (commission for Salespersons, override for managers) calculated for the selected projection period.'},
+    comm_proj_total: {title: 'Total Pay', body:()=> 'The sum of Base Pay, Bonuses, and Override/Commission.'},
+    comm_proj_pct_rev: {title: 'Total Commission % of Revenue', body:()=> 'The percentage of the total order revenue for the period that is paid out as total commissions (Base + Bonus + Override).'},
+    comm_kpi_per_pack: {title: 'Commission Per Pack', body:()=> 'The total commission paid out across the entire hierarchy, divided by the total number of packs sold in the period.'},
+    comm_kpi_per_pill: {title: 'Commission Per Pill', body:()=> 'The total commission paid out across the entire hierarchy, divided by the total number of pills sold in the period.'},
+    comm_row_dynamic: {title: 'Pay Breakdown', body: (target) => (target.dataset.tippayload || 'No calculation details.').replace(/\n/g, '<br>') }
+  };
+  ALL_COLUMNS.forEach(col => {
+    tips[`col_tip_${col.key}`] = { title: col.label, body: () => col.tooltip };
+  });
+  Object.assign(tooltips, tips);
+}
+function updateChannelStates() {
+    const channels = [
+        { id: 'R', card: $('#revR').closest('.card'), checkbox: $('#includeR') },
+        { id: 'W', card: $('#wPrice').closest('.card'), checkbox: $('#includeW') },
+        { id: 'D', card: $('#dPrice').closest('.card'), checkbox: $('#includeD') }
+    ];
+    channels.forEach(ch => {
+        const isEnabled = ch.checkbox.checked;
+        ch.card.style.opacity = isEnabled ? '1' : '0.6';
+        ch.card.querySelectorAll('input, select').forEach(input => {
+            if (input.type !== 'checkbox') {
+                 input.disabled = !isEnabled;
+            }
+        });
+    });
+}
+function enforceSkuMix(changedInput) {
+    const card = changedInput.closest('.sku-card');
+    if (!card) return;
+
+    const inputs = {
+        R: card.querySelector('.skuMixR'),
+        W: card.querySelector('.skuMixW'),
+        D: card.querySelector('.skuMixD')
+    };
+
+    let changedKey = null;
+    for (const key in inputs) {
+        if (inputs[key] === changedInput) {
+            changedKey = key;
+            break;
+        }
+    }
+    if (!changedKey) return;
+
+    let val = Math.max(0, Math.min(100, num(changedInput.value)));
+    changedInput.value = val;
+
+    const otherInputs = [];
+    for (const key in inputs) {
+        if (key !== changedKey) {
+            otherInputs.push(inputs[key]);
+        }
+    }
+
+    if (otherInputs.length > 0) {
+        const rem = 100 - val;
+        const currentOtherTotal = otherInputs.reduce((sum, input) => sum + num(input.value), 0);
+
+        if (currentOtherTotal === 0) {
+            // If other inputs are zero, split remaining value equally
+            const split = rem / otherInputs.length;
+            otherInputs.forEach(input => input.value = split.toFixed(1));
+        } else {
+            // Otherwise, scale other inputs proportionally
+            const factor = rem / currentOtherTotal;
+            otherInputs.forEach(input => input.value = (num(input.value) * factor).toFixed(1));
+        }
+    }
+
+    // Final check to ensure total is exactly 100 due to rounding
+    const finalTotal = Object.values(inputs).reduce((sum, input) => sum + num(input.value), 0);
+    const diff = 100 - finalTotal;
+    if (diff.toFixed(1) != 0.0 && otherInputs.length > 0) {
+        otherInputs[0].value = (num(otherInputs[0].value) + diff).toFixed(1);
+    }
+     if ($('#autoCalc').checked) render();
+}
+// ===== Scenarios (v7) + captures + migration =====
+const LS_KEY='channel_calc_scenarios_v7';
+const OLD_KEYS=['channel_calc_scenarios_v3','channel_calc_scenarios_v5', 'channel_calc_scenarios_v6'];
+let CAPTURES={ '__full__': [] };
+
+const ALL_COLUMNS = [
+    // Meta
+    { key: 'savedAt', label: 'Saved At', tooltip: 'The date and time the scenario was saved.' },
+    { key: 'label', label: 'Label', tooltip: 'A custom name for the scenario.' },
+    // Core Costs
+    { key: 'ingPerPack', label: 'Blended Ing. Cost/Pack', tooltip: 'Blended ingredient cost per pack based on order composition.' },
+    { key: 'packPerPack', label: 'Blended Pkg. Cost/Pack', tooltip: 'Blended packaging cost per pack based on order composition.' },
+    { key: 'dispPerPack', label: 'Blended Display Cost/Pack', tooltip: 'Blended amortized display cost per pack based on order composition.' },
+    { key: 'shipBoxPerPack', label: 'Blended Ship Box Cost/Pack', tooltip: 'Blended amortized shipping box cost per pack based on order composition.' },
+    { key: 'cogs', label: 'Blended COGS/Pack', tooltip: 'Blended Cost of Goods Sold per pack based on order composition.' },
+    { key: 'ohPerPack', label: 'Overhead/Pack', tooltip: 'Total monthly overhead allocated on a per-pack basis according to total monthly volume.' },
+    { key: 'shipPerPack', label: 'Shipping/Pack (Retail)', tooltip: 'Shipping cost applied to each retail pack sold.' },
+    // Blended KPIs
+    { key: 'brev', label: 'Blended Revenue/Pack', tooltip: 'Blended revenue per pack across all channels, based on the specific SKU mixes in the order.' },
+    { key: 'bgpp', label: 'Blended GP/Pack', tooltip: 'Blended gross profit per pack across all channels.' },
+    { key: 'bgmp', label: 'Blended GM %', tooltip: 'Blended gross margin percentage across all channels.' },
+    { key: 'bopp', label: 'Blended OP/Pack', tooltip: 'Blended operating profit per pack across all channels, after overhead.' },
+    { key: 'bomp', label: 'Blended OM %', tooltip: 'Blended operating margin percentage across all channels, after overhead.' },
+    // Channel Details - Retail
+    { key: 'revR', label: 'Retail Revenue/Pack', tooltip: 'Average revenue per pack for the retail portion of the order.' },
+    { key: 'gpR', label: 'Retail GP/Pack', tooltip: 'Average gross profit per pack for the retail portion of the order.' },
+    { key: 'gmR', label: 'Retail GM %', tooltip: 'Average gross margin percentage for the retail portion of the order.' },
+    { key: 'opR', label: 'Retail OP/Pack', tooltip: 'Average operating profit per pack for the retail portion of the order.' },
+    { key: 'omR', label: 'Retail OM %', tooltip: 'Average operating margin percentage for the retail portion of the order.' },
+    // Channel Details - Wholesale
+    { key: 'revW', label: 'Wholesale Revenue/Pack', tooltip: 'Average revenue per pack for the wholesale portion of the order.' },
+    { key: 'gpW', label: 'Wholesale GP/Pack', tooltip: 'Average gross profit per pack for the wholesale portion of the order.' },
+    { key: 'gmW', label: 'Wholesale GM %', tooltip: 'Average gross margin percentage for the wholesale portion of the order.' },
+    { key: 'opW', label: 'Wholesale OP/Pack', tooltip: 'Average operating profit per pack for the wholesale portion of the order.' },
+    { key: 'omW', label: 'Wholesale OM %', tooltip: 'Average operating margin percentage for the wholesale portion of the order.' },
+    { key: 'retailerProfit', label: 'Retailer Profit/Pack', tooltip: 'The profit the downstream retailer makes on a wholesale transaction.' },
+    // Channel Details - Distributor
+    { key: 'revD', label: 'Distributor Revenue/Pack', tooltip: 'Average revenue per pack for the distributor portion of the order.' },
+    { key: 'gpD', label: 'Distributor GP/Pack', tooltip: 'Average gross profit per pack for the distributor portion of the order.' },
+    { key: 'gmD', label: 'Distributor GM %', tooltip: 'Average gross margin percentage for the distributor portion of the order.' },
+    { key: 'opD', label: 'Distributor OP/Pack', tooltip: 'Average operating profit per pack for the distributor portion of the order.' },
+    { key: 'omD', label: 'Distributor OM %', tooltip: 'Average operating margin percentage for the distributor portion of the order.' },
+    { key: 'distProfit', label: 'Distributor Profit/Pack', tooltip: 'The profit the downstream distributor makes on a transaction.' },
+    // Per Pill Metrics
+    { key: 'costPerPill', label: 'Avg. COGS/Pill', tooltip: 'The average blended COGS per individual pill.' },
+    { key: 'profitPerPillR', label: 'Retail OP/Pill', tooltip: 'The average operating profit per pill for retail sales.' },
+    { key: 'profitPerPillW', label: 'Wholesale OP/Pill', tooltip: 'The average operating profit per pill for wholesale sales.' },
+    { key: 'profitPerPillD', label: 'Distributor OP/Pill', tooltip: 'The average operating profit per pill for distributor sales.' },
+    { key: 'overheadPerPill', label: 'Overhead/Pill', tooltip: 'The portion of monthly overhead allocated to a single pill.' },
+    // Break-Even Analysis
+    { key: 'be_units_R', label: 'B/E Units (Retail)', tooltip: 'Break-even point in packs if selling only through Retail.' },
+    { key: 'be_rev_R', label: 'B/E Revenue (Retail)', tooltip: 'Break-even point in revenue if selling only through Retail.' },
+    { key: 'be_units_W', label: 'B/E Units (Wholesale)', tooltip: 'Break-even point in packs if selling only through Wholesale.' },
+    { key: 'be_rev_W', label: 'B/E Revenue (Wholesale)', tooltip: 'Break-even point in revenue if selling only through Wholesale.' },
+    { key: 'be_units_D', label: 'B/E Units (Distributor)', tooltip: 'Break-even point in packs if selling only through Distributor.' },
+    { key: 'be_rev_D', label: 'B/E Revenue (Distributor)', tooltip: 'Break-even point in revenue if selling only through Distributor.' },
+    { key: 'be_units_B', label: 'B/E Units (Blended)', tooltip: 'Break-even point in total packs for your actual blended business.' },
+    { key: 'be_rev_B', label: 'B/E Revenue (Blended)', tooltip: 'Break-even point in total revenue for your actual blended business.' },
+    // Purchase Order Analysis
+    { key: 'po_totalQty', label: 'PO Total Qty', tooltip: 'Total quantity of packs in the specified Order Composition.' },
+    { key: 'po_retailProfit', label: 'PO Retail Profit', tooltip: 'Total gross profit from the retail portion of this specific order.' },
+    { key: 'po_wholesaleProfit', label: 'PO Wholesale Profit', tooltip: 'Total gross profit from the wholesale portion of this specific order.' },
+    { key: 'po_distributorProfit', label: 'PO Distributor Profit', tooltip: 'Total gross profit from the distributor portion of this specific order.' },
+    { key: 'po_totalProfit', label: 'PO Total GP', tooltip: 'Total gross profit from all channels for this specific order.' },
+    { key: 'po_netImpact', label: 'PO Net Impact on Monthly Profit', tooltip: 'The order\'s total gross profit minus total monthly overhead.' },
+    { key: 'po_avgCostPerPill', label: 'PO Avg. Cost/Pill', tooltip: 'Average COGS per pill for this specific order composition.' },
+    { key: 'po_avgProfitPerPill', label: 'PO Avg. GP/Pill', tooltip: 'Average gross profit per pill for this specific order composition.' },
+    { key: 'load', label: 'Load', tooltip: 'Load this scenario\'s inputs.'}
+];
+
+const SCENARIO_TABLE_KEYS = ALL_COLUMNS.map(c => c.key).filter(k => k !== 'load');
+
+function ensureFullCapture(){ CAPTURES['__full__'] = ALL_COLUMNS.map(c=>c.key) }
+function currentCaptureKeys(){ const sel=$('#capture_sel').value; return CAPTURES[sel]||ALL_COLUMNS.map(c=>c.key) }
+function drawScenarioTableHeaders(){ const head=$('#scenarios_head'); head.innerHTML=''; const tr=document.createElement('tr'); SCENARIO_TABLE_KEYS.forEach(key=>{ const colInfo = ALL_COLUMNS.find(c => c.key === key); const th=document.createElement('th'); th.textContent=colInfo ? colInfo.label : key; tr.appendChild(th) }); const th=document.createElement('th'); th.textContent='Load'; tr.appendChild(th); head.appendChild(tr) }
+function loadScenarios(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]') }catch(e){ return [] } }
+function saveScenarios(list){ localStorage.setItem(LS_KEY, JSON.stringify(list)) }
+function migrateOld(){ OLD_KEYS.forEach(k => localStorage.removeItem(k)); }
+
+function scenarioFromCurrent(C){
+  const S = C.S;
+  const poTotals = calculatePurchaseOrderTotals(C).grandTotals;
+  const row = {};
+
+  // Meta
+  row.savedAt = new Date().toLocaleString();
+  row.label = ($('#scenario_label').value || '').trim();
+
+  // Core Costs
+  row.ingPerPack = money3(C.ingPerPack);
+  row.packPerPack = money3(C.packPerPack);
+  row.dispPerPack = money3(C.dispPerPack);
+  row.shipBoxPerPack = money3(C.weightedShippingBoxCost);
+  row.cogs = money3(C.cogs);
+  row.ohPerPack = money3(C.ohPerPack);
+  row.shipPerPack = money3(C.shipPerPack);
+
+  // Blended KPIs
+  row.brev = money3(C.brev);
+  row.bgpp = money3(C.bgpp);
+  row.bgmp = pct(C.bgmp);
+  row.bopp = money3(C.bopp);
+  row.bomp = pct(C.bomp);
+
+  // Channel Details (Retail)
+  row.revR = money3(C.priceR);
+  row.gpR = money3(C.gpR);
+  row.gmR = pct(C.gmR);
+  row.opR = money3(C.opR);
+  row.omR = pct(C.omR);
+
+  // Channel Details (Wholesale)
+  row.revW = money3(C.priceW);
+  row.gpW = money3(C.gpW);
+  row.gmW = pct(C.gmW);
+  row.opW = money3(C.opW);
+  row.omW = pct(C.omW);
+  row.retailerProfit = money3(C.retailerProfit);
+
+  // Channel Details (Distributor)
+  row.revD = money3(C.priceD);
+  row.gpD = money3(C.gpD);
+  row.gmD = pct(C.gmD);
+  row.opD = money3(C.opD);
+  row.omD = pct(C.omD);
+  row.distProfit = money3(C.distProfit);
+
+  // Per Pill Metrics
+  row.costPerPill = money3(C.costPerPill);
+  row.profitPerPillR = money3(C.profitPerPillR);
+  row.profitPerPillW = money3(C.profitPerPillW);
+  row.profitPerPillD = money3(C.profitPerPillD);
+  row.overheadPerPill = money3(C.overheadPerPill);
+
+  // Break-Even Analysis
+  row.be_units_R = isFinite(C.be_units_R) ? Math.ceil(C.be_units_R).toLocaleString() : 'Unprofitable';
+  row.be_rev_R = isFinite(C.be_rev_R) ? money(C.be_rev_R) : 'N/A';
+  row.be_units_W = isFinite(C.be_units_W) ? Math.ceil(C.be_units_W).toLocaleString() : 'Unprofitable';
+  row.be_rev_W = isFinite(C.be_rev_W) ? money(C.be_rev_W) : 'N/A';
+  row.be_units_D = isFinite(C.be_units_D) ? Math.ceil(C.be_units_D).toLocaleString() : 'Unprofitable';
+  row.be_rev_D = isFinite(C.be_rev_D) ? money(C.be_rev_D) : 'N/A';
+  row.be_units_B = isFinite(C.be_units_B) ? Math.ceil(C.be_units_B).toLocaleString() : 'Unprofitable';
+  row.be_rev_B = isFinite(C.be_rev_B) ? money(C.be_rev_B) : 'N/A';
+
+  // Purchase Order Analysis
+  row.po_totalQty = poTotals.totalQty.toLocaleString();
+  row.po_retailProfit = money(poTotals.retailProfit);
+  row.po_wholesaleProfit = money(poTotals.wholesaleProfit);
+  row.po_distributorProfit = money(poTotals.distributorProfit);
+  row.po_totalProfit = money(poTotals.totalProfit);
+  row.po_netImpact = money(poTotals.totalProfit - C.ohTotal);
+  row.po_avgCostPerPill = money3(poTotals.avgCostPerPill);
+  row.po_avgProfitPerPill = money3(poTotals.avgProfitPerPill);
+  
+  // Inputs object for restoring state
+  row.__inputs = {
+    skus: S.skus,
+    order: S.order,
+    ing: S.ing,
+    oh: S.oh,
+    wDisc: S.wDisc,
+    dDisc: S.dDisc,
+    monthlyVolumes: $$('#monthlyVolumePerSku .card').map(c => ({ sku: c.querySelector('label').textContent.replace('SKU: ', ''), qty: num(c.querySelector('.monthlyVolumeSku').value) })),
+    includeShip: S.includeShip,
+    shippingPerPack: S.shippingPerPack
+  };
+  return row;
+}
+
+function drawScenarioRows(){
+  const body=$('#scenarios_body');
+  body.innerHTML='';
+  const list=loadScenarios();
+  list.forEach((r)=>{
+    const tr=document.createElement('tr');
+    SCENARIO_TABLE_KEYS.forEach(key=>{
+      const td=document.createElement('td');
+      td.textContent = r[key] ?? '—';
+      tr.appendChild(td)
+    });
+    const td=document.createElement('td');
+    const btn=document.createElement('button');
+    btn.className='btn small';
+    btn.textContent='Load';
+    btn.onclick=()=> restoreScenario(r.__inputs||{});
+    td.appendChild(btn);
+    tr.appendChild(td);
+    body.appendChild(tr)
+  })
+}
+function restoreScenario(inputs){
+  $('#skuRows').innerHTML = '';
+  (inputs.skus || []).forEach(s => $('#skuRows').appendChild(makeSkuRow({
+    sku: s.sku,
+    pills: s.pills,
+    price: s.retailPrice || s.price, // backward compatibility
+    innerPkg: s.innerPkgCost || s.innerPkg,
+    outerBox: s.outerBoxCost || s.outerBox,
+    displayBox: s.displayBoxCost,
+    packsPerDisplay: s.packsPerDisplay,
+    shippingBox: s.shippingBoxCost,
+    packsPerShipBox: s.packsPerShipBox,
+    mixR: s.mixR,
+    mixW: s.mixW,
+    mixD: s.mixD
+  })));
+  
+  updateOrderComposition();
+  $$('#orderComposition .card').forEach(card => {
+    const skuName = card.querySelector('label').textContent.replace('SKU: ', '');
+    const orderItem = (inputs.order || []).find(o => o.sku === skuName);
+    if (orderItem) {
+        card.querySelector('.orderQty').value = orderItem.qty;
+    }
+  });
+
+  // Restore monthly volumes
+  updateMonthlyVolumeInputs();
+  $$('#monthlyVolumePerSku .card').forEach(card => {
+    const skuName = card.querySelector('[data-sku-name]').dataset.skuName;
+    const volumeItem = (inputs.monthlyVolumes || []).find(v => v.sku === skuName);
+    if (volumeItem) {
+        card.querySelector('.monthlyVolumeSku').value = volumeItem.qty;
+    } else {
+        card.querySelector('.monthlyVolumeSku').value = 1;
+    }
+  });
+
+  if(inputs.wDisc!=null) $('#wDisc').value=inputs.wDisc;
+  if(inputs.dDisc!=null) $('#dDisc').value=inputs.dDisc;
+  
+  if(inputs.includeShip!=null) $('#includeShip').checked=!!inputs.includeShip;
+  if(inputs.shippingPerPack!=null) $('#shippingPerPack').value=inputs.shippingPerPack;
+
+  // Restore dynamic rows
+  $('#ingredients').innerHTML = '';
+  (inputs.ing || []).forEach(item => $('#ingredients').appendChild(makeIngRow(item.name, item.mg, item.usdmg)));
+
+  $('#oh_rows').innerHTML = '';
+  (inputs.oh || []).forEach(item => $('#oh_rows').appendChild(makeOhRow(item.name, item.cost)));
+
+  render();
+}
+function onSaveScenario(){ const C=calc(); const row=scenarioFromCurrent(C); const list=loadScenarios(); list.unshift(row); saveScenarios(list); drawScenarioRows() }
+function toCSV(){ const list=loadScenarios(); if(!list.length){ alert('No scenarios saved.'); return } const keys=SCENARIO_TABLE_KEYS.filter(c=>c !== 'load'); const header=keys.map(k => (ALL_COLUMNS.find(c=>c.key===k) || {}).label).join(','); const rows=list.map(r=> keys.map(k=> (r[k]??'').toString().replace(/\"/g,'""')).map(x=>'"'+x+'"').join(',')); const csv=[header, ...rows].join('\n'); const blob=new Blob([csv], {type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='scenarios.csv'; a.click(); URL.revokeObjectURL(url) }
+// Capture modal
+const GROUPS = {
+    'Meta': ['savedAt', 'label'],
+    'Core Costs': ['ingPerPack', 'packPerPack', 'dispPerPack', 'shipBoxPerPack', 'cogs', 'ohPerPack', 'shipPerPack'],
+    'Blended KPIs': ['brev', 'bgpp', 'bgmp', 'bopp', 'bomp'],
+    'Channel Details (Retail)': ['revR', 'gpR', 'gmR', 'opR', 'omR'],
+    'Channel Details (Wholesale)': ['revW', 'gpW', 'gmW', 'opW', 'omW', 'retailerProfit'],
+    'Channel Details (Distributor)': ['revD', 'gpD', 'gmD', 'opD', 'omD', 'distProfit'],
+    'Per Pill Metrics': ['costPerPill', 'profitPerPillR', 'profitPerPillW', 'profitPerPillD', 'overheadPerPill'],
+    'Break-Even Analysis': ['be_units_R', 'be_rev_R', 'be_units_W', 'be_rev_W', 'be_units_D', 'be_rev_D', 'be_units_B', 'be_rev_B'],
+    'Purchase Order Analysis': ['po_totalQty', 'po_retailProfit', 'po_wholesaleProfit', 'po_distributorProfit', 'po_totalProfit', 'po_netImpact', 'po_avgCostPerPill', 'po_avgProfitPerPill'],
+};
+function openCaptureModal(){
+  wireTips(calc()); // Ensure tooltips are populated
+  const host=$('#cols_groups');
+  host.innerHTML='';
+  for(const [group,keys] of Object.entries(GROUPS)){
+    const card=document.createElement('div');
+    card.className='card';
+    const h=document.createElement('div');
+    h.innerHTML='<strong>'+group+'</strong>';
+    card.appendChild(h);
+    keys.forEach(k=>{
+      const c=document.createElement('div');
+      c.className='row';
+      const id='col_'+k;
+      const colInfo = ALL_COLUMNS.find(x=>x.key===k) || {label: k, tooltip: ''};
+      c.innerHTML = `<label class="row" style="justify-content:flex-start" data-tip="col_tip_${k}"><input id="${id}" type="checkbox" checked> ${colInfo.label}</label>`;
+      card.appendChild(c);
+    });
+    host.appendChild(card);
+  }
+  $('#modal').style.display='flex';
+}
+function saveCapture(){ const name = ($('#cap_name').value||'').trim() || 'Custom capture'; const keys=[]; Object.values(GROUPS).flat().forEach(k=>{ if($('#col_'+k).checked) keys.push(k) }); CAPTURES[name]=keys; const opt=document.createElement('option'); opt.value=name; opt.textContent=name; $('#capture_sel').appendChild(opt); $('#capture_sel').value=name; $('#modal').style.display='none' }
+// ===== START: Third Party Section Logic =====
+const thirdPartyData = {
+    "Sales Company": [
+        "Sales Strategy Development", "Territory & Channel Mapping", "Prospecting & Lead Generation", "CRM Setup & Management", "Pipeline Management", "Sales Collateral Creation", "Sales Training & Coaching", "Sales Call Execution", "Trade Show Representation", "Distributor & Retailer Outreach", "Key Account Management", "Sales Order Processing", "Negotiation & Contract Closing", "Commission on Sales", "Sales Performance Reporting", "Wholesale Account Setup Fees", "Retail Buyer Introductions", "Customer Relationship Mgmt", "Merchandising & Display Setup", "Sampling & Demo Programs", "Incentive Program Mgmt", "Channel Conflict Resolution", "Market Feedback Reporting", "Sales Forecasting", "Customer Onboarding & Education"
+    ],
+    "Operations Company": [
+        "Operations Strategy Development", "SOP Creation & Documentation", "Workflow Optimization", "Process Automation & Tech", "KPI Dashboard Setup", "Supply Chain Management", "Vendor Contract Negotiation", "Inventory Oversight", "Freight & Shipping Coordination", "Procurement & Purchasing", "Quality Control Audits", "Risk & Compliance Oversight", "Facility & Equipment Management", "Workforce Scheduling", "Safety & OSHA Programs", "Lean / Cost Reduction", "Returns & Reverse Logistics", "ERP/CRM/WMS Integration", "Customer Service Oversight", "Performance Tracking Reports", "Multi-Channel Ops Alignment", "Training & Onboarding", "IT Infrastructure Support", "Project Management Services", "Crisis & Contingency Planning"
+    ],
+    "Fulfillment Company": [
+        "Inbound Receiving Fees", "SKU Setup Fees", "Quality Control on Receipt", "Pallet Breakdown / Sorting", "Storage Fees (pallet/bin)", "Climate-Controlled Storage", "Long-Term Storage Fees", "Pick Fees (per item)", "Pack Fees (per order)", "Packaging Materials", "Custom Packaging / Branded Boxes", "Kitting & Assembly", "Shipping Label Fees", "Carrier Postage (pass-through)", "Freight Coordination (LTL/FTL)", "International Shipping Docs", "Returns Processing Fees", "Rework / Relabeling", "Lot & Expiration Tracking", "Subscription Box Assembly", "Account Management Fee", "Tech Integration Fee", "Inventory Cycle Counting", "Disposal / Liquidation Fees", "Rush Order / Priority Handling"
+    ],
+    "Business Management Company": [
+        "Business Strategy Development", "Market & Channel Planning", "Fractional CEO/COO Advisory", "OKRs & Roadmap Development", "Financial Modeling & Forecasting", "Budget Development & Oversight", "Profitability & Margin Analysis", "Fundraising & Investor Support", "Governance & Board Reporting", "Risk & Compliance Oversight", "Contract & Legal Coordination", "Licensing & Regulatory Filing", "Vendor Oversight & Coordination", "Cross-System Integration", "HR & Org Design", "Compensation & Incentive Planning", "Executive Recruiting Support", "Performance Management Systems", "Capital Allocation Strategy", "Strategic Partnership Dev.", "Channel Performance Reviews", "Quarterly Business Reviews", "KPI Dashboard Reporting", "Scenario Planning & Stress Tests", "Crisis & Contingency Mgmt"
+    ],
+    "Marketing Company": [
+        "Marketing Strategy Development", "Brand Identity & Guidelines", "Logo & Visual Design", "Content Writing (blogs, copy)", "Photography (product, lifestyle)", "Video Production", "Graphic Design (ads, infographics)", "Paid Media Management", "Ad Spend (pass-through)", "Conversion Rate Optimization", "Website & Landing Page Design", "Search Engine Optimization (SEO)", "Social Media Management", "Influencer & Affiliate Mgmt", "Email Marketing Campaigns", "Marketing Automation (HubSpot, etc.)", "PR & Media Outreach", "Event Marketing (launch, pop-ups)", "Sponsorship Management", "Analytics Dashboards & Reporting", "Customer Segmentation & Personas", "Market Research & Competitor Analysis", "Product Launch Campaigns", "Creative Direction (tone/look/feel)", "Crisis Communication & Reputation"
+    ]
+};
+function buildThirdPartySection() {
+    const container = $('#thirdPartyCompaniesContainer');
+    container.innerHTML = '';
+    for (const [company, items] of Object.entries(thirdPartyData)) {
+        const details = document.createElement('details');
+        const companyId = company.replace(/\s+/g, '-');
+        let tableRows = items.map((item, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${item}</td>
+                <td><input type="number" class="tp-cost" value="0.00" step="0.01" data-company="${companyId}"></td>
+            </tr>
+        `).join('');
+        details.innerHTML = `
+            <summary>
+                <span>${company}</span>
+                <label class="row" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="tp-include" id="include-${companyId}">
+                    Include in calculations
+                </label>
+            </summary>
+            <div class="company-content">
+                <div class="scroller" style="max-height:300px; overflow:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:40px;">#</th>
+                                <th>Line Item</th>
+                                <th style="width:120px;">Cost ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        container.appendChild(details);
+    }
+}
+function calculateThirdPartyCosts(returnTotal = false) {
+    let totalMonthlyCost = 0;
+    const companies = Object.keys(thirdPartyData);
+    companies.forEach(company => {
+        const companyId = company.replace(/\s+/g, '-');
+        const includeCheckbox = $(`#include-${companyId}`);
+        if (includeCheckbox && includeCheckbox.checked) {
+            const costInputs = $$(`.tp-cost[data-company="${companyId}"]`);
+            costInputs.forEach(input => {
+                totalMonthlyCost += num(input.value);
+            });
+        }
+    });
+    if (returnTotal) {
+        return totalMonthlyCost;
+    }
+    const weeklyCost = totalMonthlyCost / 4.33; // Average weeks in a month
+    const dailyCost = totalMonthlyCost / 30.44; // Average days in a month
+    $('#tp_monthly_cost').textContent = money(totalMonthlyCost);
+    $('#tp_weekly_cost').textContent = money(weeklyCost);
+    $('#tp_daily_cost').textContent = money(dailyCost);
+}
+function wireThirdPartyEvents() {
+    const container = $('#thirdPartySection');
+    container.addEventListener('input', (e) => {
+        if (e.target.classList.contains('tp-cost') || e.target.classList.contains('tp-include')) {
+            if ($('#autoCalc').checked) render();
+        }
+    });
+     container.addEventListener('change', (e) => {
+        if (e.target.classList.contains('tp-include')) {
+            if ($('#autoCalc').checked) render();
+        }
+    });
+}
+// ===== END: Third Party Section Logic =====
+// ===== START: Purchase Order Logic =====
+function calculatePurchaseOrderTotals(C) {
+    const { S } = C;
+    const lineItems = [];
+    const grandTotals = {
+        totalQty: 0,
+        retailProfit: 0,
+        wholesaleProfit: 0,
+        distributorProfit: 0,
+        totalProfit: 0,
+        totalPills: 0,
+        totalCOGS: 0
+    };
+
+    S.order.forEach(orderItem => {
+        const sku = S.skus.find(s => s.sku === orderItem.sku);
+        if (!sku || orderItem.qty === 0) return;
+
+        const ingPerPack = S.ing.reduce((a, x) => a + (x.mg * sku.pills * x.usdmg), 0);
+        const cogsPerPack = ingPerPack + sku.innerPkgCost + sku.outerBoxCost + (sku.displayBoxCost / sku.packsPerDisplay) + (sku.shippingBoxCost / sku.packsPerShipBox);
+
+        const retailQty = orderItem.qty * (sku.mixR / 100);
+        const wholesaleQty = orderItem.qty * (sku.mixW / 100);
+        const distributorQty = orderItem.qty * (sku.mixD / 100);
+
+        const priceR = sku.retailPrice;
+        const priceW = priceR * (1 - S.wDisc / 100);
+        const priceD = priceW * (1 - S.dDisc / 100);
+        
+        const retailProfit = retailQty * (priceR - cogsPerPack);
+        const wholesaleProfit = wholesaleQty * (priceW - cogsPerPack);
+        const distributorProfit = distributorQty * (priceD - cogsPerPack);
+        
+        const totalProfit = retailProfit + wholesaleProfit + distributorProfit;
+        
+        const line = {
+            sku: sku.sku,
+            totalQty: orderItem.qty,
+            retailProfit,
+            wholesaleProfit,
+            distributorProfit,
+            totalProfit
+        };
+        lineItems.push(line);
+
+        grandTotals.totalQty += line.totalQty;
+        grandTotals.retailProfit += line.retailProfit;
+        grandTotals.wholesaleProfit += line.wholesaleProfit;
+        grandTotals.distributorProfit += line.distributorProfit;
+        grandTotals.totalProfit += line.totalProfit;
+        grandTotals.totalPills += sku.pills * orderItem.qty;
+        grandTotals.totalCOGS += cogsPerPack * orderItem.qty;
+    });
+
+    if ($('#applyCommissionToGP').checked && window.lastCommissionTotal) {
+        grandTotals.totalProfit -= window.lastCommissionTotal;
+    }
+
+    grandTotals.avgCostPerPill = grandTotals.totalPills > 0 ? grandTotals.totalCOGS / grandTotals.totalPills : 0;
+    grandTotals.avgProfitPerPill = grandTotals.totalPills > 0 ? grandTotals.totalProfit / grandTotals.totalPills : 0;
+
+    return { lineItems, grandTotals };
+}
+
+function calculatePurchaseOrders(C) {
+    if (!C) C = calc();
+    const poData = calculatePurchaseOrderTotals(C);
+    const { lineItems, grandTotals } = poData;
+    const { ohTotal } = C;
+
+    let tableHTML = `<div class="scroller" style="max-height:300px; overflow:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Total Qty</th>
+            <th>Retail Profit</th>
+            <th>Wholesale Profit</th>
+            <th>Distributor Profit</th>
+            <th>Total Gross Profit</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+    lineItems.forEach(item => {
+        tableHTML += `
+          <tr>
+            <td>${item.sku}</td>
+            <td>${item.totalQty.toLocaleString()}</td>
+            <td>${money(item.retailProfit)}</td>
+            <td>${money(item.wholesaleProfit)}</td>
+            <td>${money(item.distributorProfit)}</td>
+            <td>${money(item.totalProfit)}</td>
+          </tr>`;
+    });
+
+    tableHTML += `
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td><strong>Grand Total</strong></td>
+            <td><strong>${grandTotals.totalQty.toLocaleString()}</strong></td>
+            <td><strong>${money(grandTotals.retailProfit)}</strong></td>
+            <td><strong>${money(grandTotals.wholesaleProfit)}</strong></td>
+            <td><strong>${money(grandTotals.distributorProfit)}</strong></td>
+            <td><strong>${money(grandTotals.totalProfit)}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+
+    tableHTML += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top:16px;">
+        <div class="card" data-tip="po_summary_gp"><div class="muted">Total Gross Profit from Order</div><div class="big thin">${money(grandTotals.totalProfit)}</div></div>
+        <div class="card" data-tip="po_summary_oh"><div class="muted">Total Monthly Overhead</div><div class="big thin">${money(ohTotal)}</div></div>
+        <div class="card" data-tip="po_summary_net"><div class="muted">Net Impact on Monthly Profit</div><div class="big thin">${money(grandTotals.totalProfit - ohTotal)}</div></div>
+        <div class="card" data-tip="po_summary_cost_pill"><div class="muted">Avg Cost per Pill</div><div class="big thin">${money3(grandTotals.avgCostPerPill)}</div></div>
+        <div class="card" data-tip="po_summary_profit_pill"><div class="muted">Avg Profit per Pill</div><div class="big thin">${money3(grandTotals.avgProfitPerPill)}</div></div>
+    </div>`;
+
+    $('#po-unified-content').innerHTML = tableHTML;
+}
+
+
+function wirePOEvents() {
+    $('#be_include_overhead').addEventListener('change', render);
+}
+// ===== END: Purchase Order Logic =====
+// ===== Events =====
+function wireInputs(){
+    document.addEventListener('input', e => {
+        const t = e.target;
+
+        if (t.classList.contains('pills')) {
+            const row = t.closest('.sku-card');
+            const skuInput = row.querySelector('.skuName');
+            const pillCount = num(t.value);
+            skuInput.value = `${pillCount}-pack`;
+
+            const retailPriceInput = row.querySelector('.retailPrice');
+            const pricingTiers = { '3': '21.95', '10': '57.50', '15': '82.50', '30': '157.50' };
+            if (pricingTiers[pillCount]) {
+                retailPriceInput.value = pricingTiers[pillCount];
+            }
+            updateOrderComposition();
+            updateMonthlyVolumeInputs();
+        }
+
+        if (t.classList.contains('skuMixR') || t.classList.contains('skuMixW') || t.classList.contains('skuMixD')) {
+            enforceSkuMix(t);
+        }
+
+        if (t.id === 'includeThirdParty' && $('#autoCalc').checked) {
+            render();
+        }
+
+        if ($('#autoCalc').checked) {
+            render();
+        }
+    });
+
+    $('#channel_toggles').addEventListener('change', () => {
+        updateChannelStates();
+        if ($('#autoCalc').checked) render();
+    });
+    $('#recalcBtn').onclick = render;
+    $('#btn_save').onclick = onSaveScenario;
+    $('#btn_csv').onclick = toCSV;
+    $('#btn_clear').onclick = ()=>{ localStorage.removeItem(LS_KEY); drawScenarioRows() };
+    $('#btn_choose_cols').onclick = openCaptureModal;
+    $('#modal_close').onclick = ()=> $('#modal').style.display='none';
+    $('#save_capture').onclick = saveCapture;
+}
+// ===== Boot =====
+function boot(){
+    // Set default values for the top-left section from the image
+    $('#skuRows').appendChild(makeSkuRow({
+        sku:'3-pack', 
+        pills:3, 
+        price:21.95, 
+        innerPkg: 1.50, 
+        outerBox: 1.75,
+        displayBox: 0,
+        packsPerDisplay: 1,
+        shippingBox: 1.5,
+        packsPerShipBox: 1,
+        mixR: 100,
+        mixW: 0,
+        mixD: 0,
+    }));
+    updateOrderComposition();
+    updateMonthlyVolumeInputs();
+    $('#ingredients').innerHTML = '';
+    $('#ingredients').appendChild(makeIngRow('Metocin 4-HO-MET', 2, 0.7));
+    $('#ingredients').appendChild(makeIngRow('Filler', 800, 0.000075));
+    $('#ingredients').appendChild(makeIngRow('Binder', 198, 0.00015));
+
+    // Set other defaults from the image
+    $('#includeR').checked = true;
+    $('#includeW').checked = false;
+    $('#includeD').checked = false;
+    $('#wDisc').value = 50;
+    $('#dDisc').value = 25;
+    $('#shippingPerPack').value = 2.50;
+    $('#oh_rows').innerHTML = '';
+    $('#oh_rows').appendChild(makeOhRow('Salaries', 10000));
+    $('#oh_rows').appendChild(makeOhRow('RENT', 5000));
+    $('#oh_rows').appendChild(makeOhRow('INSURANCE', 1000));
+    $('#oh_rows').appendChild(makeOhRow('POWER', 500));
+
+    ensureFullCapture();
+    initializeTooltipEvents();
+    wireInputs();
+    migrateOld();
+    updateChannelStates();
+
+    // --- Third Party Section Initialization ---
+    buildThirdPartySection();
+    wireThirdPartyEvents();
+    calculateThirdPartyCosts();
+
+    // --- Purchase Order Initialization ---
+    wirePOEvents();
+    render();
+}
+boot();
+</script>
+
+<script>
+(function(){
+  const $ = (s, el=document)=>el.querySelector(s);
+  const $$ = (s, el=document)=>Array.from(el.querySelectorAll(s));
+  const money = n => '$'+(Number(n)||0).toFixed(2);
+  const pct = n => (Number(n)||0).toFixed(2)+'%';
+  
+  function prorateBase(monthly){ 
+    if(!$('#showBasePayInProjections').checked) return 0;
+    if(!monthly) return 0; 
+    const period = $('#projPeriod').value;
+    if (period === 'Daily') return monthly / 30.4375;
+    if (period === 'Weekly') return monthly / 4.333;
+    if (period === 'Monthly') return monthly;
+    if (period === 'Quarterly') return monthly * 3;
+    if (period === 'Yearly') return monthly * 12;
+    return monthly; 
+  }
+
+  // ------- Order bridge -------
+  let lastOrder = null; // {packsR,packsW,packsD,priceR,priceW,priceD,pillsPerPack}
+  window.lastCommissionTotal = 0;
+  function readOrderFromHidden(){
+    const val = id => Number($(id))||0;
+    const gv = id => { const el=$(id); return el? Number(el.value||el.textContent||0):0; };
+    const packsR = gv('#order_packs_R'), packsW = gv('#order_packs_W'), packsD = gv('#order_packs_D');
+    const priceR = gv('#order_price_R'), priceW = gv('#order_price_W'), priceD = gv('#order_price_D');
+    const pillsPerPack = gv('#order_pills_per_pack');
+    return { packsR, packsW, packsD, priceR, priceW, priceD, pillsPerPack };
+  }
+  function getOrder(){ return lastOrder || readOrderFromHidden() || {packsR:0,packsW:0,packsD:0,priceR:0,priceW:0,priceD:0,pillsPerPack:0}; }
+  window.projectionSetOrder = function(order){ lastOrder = Object.assign({packsR:0,packsW:0,packsD:0,priceR:0,priceW:0,priceD:0,pillsPerPack:0}, order||{}); compute(); };
+
+  // ------- Dynamic role cards (with delete) -------
+  let vpId=0, rsmId=0, spId=0;
+  function vpCard(name='Vice President 1', pctVal=2, base=0){
+    const d=document.createElement('div'); d.className='card'; d.dataset.id=++vpId;
+    d.innerHTML=`
+      <div class="row" style="justify-content:space-between; align-items:center">
+        <strong class="vpTitle">${name}</strong>
+        <button class="btn danger vpRemove" title="Delete this Vice President">Remove</button>
+      </div>
+      <div class="grid-4">
+        <div><label>Name</label><input class="vpName" value="${name}" data-tip="comm_name"></div>
+        <div data-tip="comm_channels"><label>Channels</label>
+          <div class="row">
+            <label class="row"><input class="vpR" type="checkbox" checked> Retail</label>
+            <label class="row"><input class="vpW" type="checkbox" checked> Wholesale</label>
+            <label class="row"><input class="vpD" type="checkbox" checked> Distributor</label>
+          </div>
+        </div>
+        <div data-tip="comm_val"><label>Override value (%)</label><input class="vpPct" type="number" step="0.01" value="${pctVal}"></div>
+        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="vpBase" type="number" step="0.01" value="${base}"></div>
+      </div>`;
+    d.querySelector('.vpRemove').onclick=()=>{ if(true){ d.remove(); refreshAssignments(); compute(); } };
+    return d;
+  }
+  function rsmCard(name='Regional Sales Manager 1', pctVal=3, base=0){
+    const d=document.createElement('div'); d.className='card'; d.dataset.id=++rsmId;
+    d.innerHTML=`
+      <div class="row" style="justify-content:space-between; align-items:center">
+        <strong class="rsmTitle">${name}</strong>
+        <button class="btn danger rsmRemove" title="Delete this Regional Sales Manager">Remove</button>
+      </div>
+      <div class="grid-4">
+        <div><label>Name</label><input class="rsmName" value="${name}" data-tip="comm_name"></div>
+        <div data-tip="comm_assign_vp"><label>Assign to Vice President</label><select class="rsmVP"></select></div>
+        <div data-tip="comm_val"><label>Override value (%)</label><input class="rsmPct" type="number" step="0.01" value="${pctVal}"></div>
+        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="rsmBase" type="number" step="0.01" value="${base}"></div>
+      </div>
+      <div data-tip="comm_channels">
+        <label>Channels</label>
+        <div class="row">
+          <label class="row"><input class="rsmR" type="checkbox" checked> Retail</label>
+          <label class="row"><input class="rsmW" type="checkbox" checked> Wholesale</label>
+          <label class="row"><input class="rsmD" type="checkbox" checked> Distributor</label>
+        </div>
+      </div>`;
+    d.querySelector('.rsmRemove').onclick=()=>{ if(true){ const id=d.dataset.id; d.remove(); $$('#spContainer .card').forEach(s=>{ const sel=$('.spRSM',s); if(sel.value===id){ sel.value=''; } }); refreshAssignments(); compute(); } };
+    return d;
+  }
+  function spCard(name='Salesperson 1', pctVal=10, base=0, share=100){
+    const d=document.createElement('div'); d.className='card'; d.dataset.id=++spId;
+    d.innerHTML=`
+      <div class="row" style="justify-content:space-between; align-items:center">
+        <strong class="spTitle">${name}</strong>
+        <button class="btn danger spRemove" title="Delete this Salesperson">Remove</button>
+      </div>
+      <div class="grid-5">
+        <div><label>Name</label><input class="spName" value="${name}" data-tip="comm_name"></div>
+        <div data-tip="comm_assign_rsm"><label>Assign to Regional Sales Manager</label><select class="spRSM"></select></div>
+        <div data-tip="comm_val"><label>Commission value (%)</label><input class="spPct" type="number" step="0.01" value="${pctVal}"></div>
+        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="spBase" type="number" step="0.01" value="${base}"></div>
+        <div data-tip="comm_sp_share"><label>Share percent of order</label><input class="spShare" type="number" step="0.01" value="${share}"></div>
+      </div>
+      <div class="row" data-tip="comm_channels">
+        <label class="row"><input class="spR" type="checkbox" checked> Retail</label>
+        <label class="row"><input class="spW" type="checkbox" checked> Wholesale</label>
+        <label class="row"><input class="spD" type="checkbox" checked> Distributor</label>
+      </div>
+      <div class="grid-4" data-tip="comm_bonus_order">
+        <div><label>Order‑tied bonus amount ($)</label><input class="bonusOrderAmt" type="number" step="0.01" value="0"></div>
+        <div><label>Trigger: min units (packs)</label><input class="bonusOrderUnits" type="number" value="0"></div>
+        <div><label>Trigger: min revenue ($)</label><input class="bonusOrderRev" type="number" step="0.01" value="0"></div>
+        <div></div>
+      </div>
+      <div class="grid-4" data-tip="comm_bonus_period">
+        <div><label>Period‑tied bonus amount ($)</label><input class="bonusPeriodAmt" type="number" step="0.01" value="0"></div>
+        <div><label>Trigger: min units (packs)</label><input class="bonusPeriodUnits" type="number" value="0"></div>
+        <div><label>Trigger: min revenue ($)</label><input class="bonusPeriodRev" type="number" step="0.01" value="0"></div>
+        <div></div>
+      </div>`;
+    d.querySelector('.spRemove').onclick=()=>{ if(true){ d.remove(); refreshAssignments(); normalizeSharesEven(); compute(); } };
+    d.addEventListener('input',(e)=>{ if(e.target.classList.contains('spShare')){ autoBalanceShares(e.target); compute(); } });
+    return d;
+  }
+  function addVP(name='Vice President 1', pctVal=2, base=0){ $('#vpContainer').appendChild(vpCard(name,pctVal,base)); refreshAssignments(); compute(); }
+  function addRSM(name='Regional Sales Manager 1', pctVal=3, base=0){ $('#rsmContainer').appendChild(rsmCard(name,pctVal,base)); refreshAssignments(); compute(); }
+  function addSP(name='Salesperson 1', pctVal=10, base=0, share=100){ $('#spContainer').appendChild(spCard(name,pctVal,base,share)); refreshAssignments(); normalizeSharesEven(); compute(); }
+
+  // Buttons
+  document.addEventListener('click', e=>{
+    if(e.target && e.target.id==='addVP') addVP(`Vice President ${++vpId}`, 2, 0);
+    if(e.target && e.target.id==='addRSM') addRSM(`Regional Sales Manager ${++rsmId}`, 3, 0);
+    if(e.target && e.target.id==='addSP') addSP(`Salesperson ${++spId}`, 10, 0, 0);
+  });
+
+  // Assignment lists
+  function refreshAssignments(){
+    const vpOpts=['<option value="">—</option>'].concat($$('#vpContainer .card').map(v=>`<option value="${v.dataset.id}">${$('.vpName',v).value||'Vice President'}</option>`)).join('');
+    $$('#rsmContainer .card').forEach(r=>{ $('.rsmVP',r).innerHTML=vpOpts; });
+    const rsmOpts=['<option value="">—</option>'].concat($$('#rsmContainer .card').map(r=>`<option value="${r.dataset.id}">${$('.rsmName',r).value||'Regional Sales Manager'}</option>`)).join('');
+    $$('#spContainer .card').forEach(s=>{ $('.spRSM',s).innerHTML=rsmOpts; });
+    const spOpts=['<option value="">— none —</option>'].concat($$('#spContainer .card').map(s=>`<option value="${s.dataset.id}">${$('.spName',s).value||'Salesperson'}</option>`)).join('');
+    $('#ownerSelect').innerHTML=spOpts;
+  }
+
+  // Shares
+  function clamp(v,min,max){ return Math.min(max, Math.max(min, v)); }
+  function autoBalanceShares(changed){
+    const cards = $$('#spContainer .card'); if(cards.length===0) return;
+    if(cards.length===1){ $('.spShare',cards[0]).value='100'; return; }
+    const changedVal = clamp(parseFloat(changed.value)||0, 0, 100); changed.value=(Math.round(changedVal*100)/100).toString();
+    const others = cards.map(c=>$('.spShare',c)).filter(i=>i!==changed);
+    const sumOthers = others.reduce((s,i)=>s+(parseFloat(i.value)||0),0);
+    if(changedVal>=100){ others.forEach(i=>i.value='0'); changed.value='100'; return; }
+    if(sumOthers<=0){ const per=(100-changedVal)/others.length; others.forEach(i=>i.value=per.toFixed(2)); return; }
+    const scale=(100-changedVal)/sumOthers; others.forEach(i=>{ const v=(parseFloat(i.value)||0)*scale; i.value=v.toFixed(2); });
+  }
+  function normalizeSharesEven(){ const cards=$$('#spContainer .card'); if(cards.length===0) return; const sum=cards.reduce((s,c)=>s+(parseFloat($('.spShare',c).value)||0),0); if(sum===0){ const per=(100/cards.length); cards.forEach(c=>$('.spShare',c).value=per.toFixed(2)); } }
+
+  // Read hierarchy
+  function readHierarchy(){
+    const pres={ chans:{R:$('#presR').checked,W:$('#presW').checked,D:$('#presD').checked}, pct:Number($('#presPct').value)||0, base:Number($('#presBase').value)||0, name:'President of Sales' };
+    const vps=$$('#vpContainer .card').map(v=>({ id:v.dataset.id, name:$('.vpName',v).value||'Vice President', chans:{R:$('.vpR',v).checked,W:$('.vpW',v).checked,D:$('.vpD',v).checked}, pct:Number($('.vpPct',v).value)||0, base:Number($('.vpBase',v).value)||0 }));
+    const rsms=$$('#rsmContainer .card').map(r=>({ id:r.dataset.id, name:$('.rsmName',r).value||'Regional Sales Manager', vpId:$('.rsmVP',r).value||'', chans:{R:$('.rsmR',r).checked,W:$('.rsmW',r).checked,D:$('.rsmD',r).checked}, pct:Number($('.rsmPct',r).value)||0, base:Number($('.rsmBase',r).value)||0 }));
+    const sps=$$('#spContainer .card').map(s=>({ id:s.dataset.id, name:$('.spName',s).value||'Salesperson', rsmId:$('.spRSM',s).value||'', chans:{R:$('.spR',s).checked,W:$('.spW',s).checked,D:$('.spD',s).checked}, pct:Number($('.spPct',s).value)||0, base:Number($('.spBase',s).value)||0, share:Number($('.spShare',s).value)||0, bonusOrder:{ amt:Number($('.bonusOrderAmt',s).value)||0, units:Number($('.bonusOrderUnits',s).value)||0, rev:Number($('.bonusOrderRev',s).value)||0 }, bonusPeriod:{ amt:Number($('.bonusPeriodAmt',s).value)||0, units:Number($('.bonusPeriodUnits',s).value)||0, rev:Number($('.bonusPeriodRev',s).value)||0 } }));
+    const ownerId=$('#ownerSelect').value||'';
+    return { pres,vps,rsms,sps,ownerId };
+  }
+
+  // Compute
+  function compute(){
+    const O = (function(){ const o=getOrder(); return Object.assign({}, o, { revR:o.packsR*o.priceR, revW:o.packsW*o.priceW, revD:o.packsD*o.priceD }); })();
+    const H = readHierarchy();
+    
+    const ordersPerYear = num($('#ordersPerYear').value) || 1;
+    const period = $('#projPeriod').value;
+    let ordersPerPeriod = 1;
+
+    if (period === 'Daily') ordersPerPeriod = ordersPerYear / 365;
+    else if (period === 'Weekly') ordersPerPeriod = ordersPerYear / 52;
+    else if (period === 'Monthly') ordersPerPeriod = ordersPerYear / 12;
+    else if (period === 'Quarterly') ordersPerPeriod = ordersPerYear / 4;
+    else if (period === 'Yearly') ordersPerPeriod = ordersPerYear;
+
+    const totalRevenue = O.revR+O.revW+O.revD;
+    const totalPacks = O.packsR+O.packsW+O.packsD;
+    
+    const vpById=Object.fromEntries(H.vps.map(v=>[v.id,v]));
+    const rsmById=Object.fromEntries(H.rsms.map(r=>[r.id,r]));
+
+    // Normalize shares
+    const shareSum = H.sps.reduce((s,sp)=>s+(sp.share||0),0);
+    const n=H.sps.length; H.sps.forEach(sp=>{ sp.normShare = shareSum>0 ? (sp.share/shareSum) : (n? 1/n : 0); });
+
+    const spRows=new Map(), rsmRows=new Map(), vpRows=new Map();
+    let presRow={ name:'President of Sales', base:prorateBase(H.pres.base), bonus:0, override:0, tipParts:[], roleType: 'manager' };
+    H.sps.forEach(sp=>spRows.set(sp.id,{ name:sp.name+' (Salesperson)', base:prorateBase(sp.base), bonus:0, override:0, tipParts:[], roleType: 'salesperson' }));
+    H.rsms.forEach(r=>rsmRows.set(r.id,{ name:r.name+' (Regional Sales Manager)', base:prorateBase(r.base), bonus:0, override:0, tipParts:[], roleType: 'manager' }));
+    H.vps.forEach(v=>vpRows.set(v.id,{ name:v.name+' (Vice President of Sales)', base:prorateBase(v.base), bonus:0, override:0, tipParts:[], roleType: 'manager' }));
+    
+    const totalMonthlySalaries = H.pres.base + H.vps.reduce((s,v)=>s+v.base,0) + H.rsms.reduce((s,r)=>s+r.base,0) + H.sps.reduce((s,sp)=>s+sp.base,0);
+    const totalSalariesInput = $('#total_sales_salaries_monthly');
+    if (totalSalariesInput) {
+        totalSalariesInput.value = money(totalMonthlySalaries);
+    }
+    
+    const channels=[ {k:'R',rev:O.revR,label:'Retail'}, {k:'W',rev:O.revW,label:'Wholesale'}, {k:'D',rev:O.revD,label:'Distributor'} ];
+
+    // Bonuses + carve‑out
+    H.sps.forEach(sp=>{
+      const orderUnits = totalPacks * sp.normShare;
+      const orderRev   = totalRevenue * sp.normShare;
+      
+      const periodUnits = orderUnits * ordersPerPeriod;
+      const periodRev = orderRev * ordersPerPeriod;
+      
+      if(sp.bonusOrder.amt>0 && orderUnits>=sp.bonusOrder.units && orderRev>=sp.bonusOrder.rev){ spRows.get(sp.id).bonus += sp.bonusOrder.amt * ordersPerPeriod; }
+      if(sp.bonusPeriod.amt>0 && periodUnits>=sp.bonusPeriod.units && periodRev>=sp.bonusPeriod.rev){ spRows.get(sp.id).bonus += sp.bonusPeriod.amt; }
+
+      channels.forEach(ch=>{
+        let slice = ch.rev * sp.normShare; if(slice<=0) return;
+        let tips=[];
+        if(sp.chans[ch.k]){ const c=(sp.pct/100)*slice; spRows.get(sp.id).override+=c; tips.push(`${ch.label}: Salesperson ${(sp.pct||0).toFixed(2)}% × ${money(slice)} = ${money(c)}`); slice-=c; }
+        const r = sp.rsmId ? rsmById[sp.rsmId] : null; const v = r && r.vpId ? vpById[r.vpId] : null;
+        if(r && r.chans[ch.k]){ const c=(r.pct/100)*slice; rsmRows.get(r.id).override+=c; tips.push(`${ch.label}: Regional Sales Manager ${(r.pct||0).toFixed(2)}% × remainder = ${money(c)}`); slice-=c; }
+        if(v && v.chans[ch.k]){ const c=(v.pct/100)*slice; vpRows.get(v.id).override+=c; tips.push(`${ch.label}: Vice President ${(v.pct||0).toFixed(2)}% × remainder = ${money(c)}`); slice-=c; }
+        if(H.pres && H.pres.chans[ch.k]){ const c=(H.pres.pct/100)*slice; presRow.override+=c; tips.push(`${ch.label}: President ${(H.pres.pct||0).toFixed(2)}% × remainder = ${money(c)}`); slice-=c; }
+        spRows.get(sp.id).tipParts.push(...tips); if(r) rsmRows.get(r.id).tipParts.push(...tips); if(v) vpRows.get(v.id).tipParts.push(...tips); presRow.tipParts.push(...tips);
+      });
+    });
+
+    // Period scaling for overrides
+    spRows.forEach(r=>r.override*=ordersPerPeriod); rsmRows.forEach(r=>r.override*=ordersPerPeriod); vpRows.forEach(r=>r.override*=ordersPerPeriod); presRow.override*=ordersPerPeriod;
+
+    // Render table (use your existing tbody id)
+    const body=$('#proj_body_hierarchical'); body.innerHTML=''; let grand=0; const ownerId=H.ownerId;
+    function emitRow(obj, highlight=false){ const total=obj.base+obj.bonus+obj.override; grand+=total; const tr=document.createElement('tr'); if(highlight){ tr.classList.add('owner'); }
+      const singleOrderOverride = ordersPerPeriod > 0 ? obj.override / ordersPerPeriod : 0;
+      const singleOrderBonus = ordersPerPeriod > 0 ? obj.bonus / ordersPerPeriod : 0;
+      tr.innerHTML=`<td>${highlight?'★ ':''}${obj.name}</td><td>${money(obj.base)}</td><td>${obj.roleType==='salesperson' ? money(obj.bonus) : '-'}</td><td>${money(obj.override)}</td><td>${money(total)}</td>`;
+      const tip=[`<b>Base (prorated): ${money(obj.base)}</b>`];
+      
+      if(obj.roleType === 'salesperson'){
+        tip.push(`<b>Bonuses per Order: ${money(singleOrderBonus)}</b>`)
+        tip.push(`Projected Bonuses for Period: ${money(singleOrderBonus)} × ${ordersPerPeriod.toFixed(2)} orders = ${money(obj.bonus)}`)
+      } else {
+        tip.push(`<b>Bonuses: N/A</b>`);
+      }
+
+      if(obj.tipParts && obj.tipParts.length){
+        tip.push(`<b>Overrides per Order: ${money(singleOrderOverride)}</b>`);
+        tip.push(`- ${obj.tipParts.join('\n- ')}`);
+        tip.push(`<b>Projected Overrides for Period:</b>`);
+        tip.push(`${money(singleOrderOverride)} × ${ordersPerPeriod.toFixed(2)} orders = ${money(obj.override)}`);
+      } else {
+        tip.push('<b>Overrides: none</b>');
+      }
+      tr.setAttribute('data-tip', 'comm_row_dynamic');
+      tr.dataset.tippayload = tip.join('\n');
+      body.appendChild(tr); 
+    }
+    H.sps.forEach(sp=>emitRow(spRows.get(sp.id), ownerId && sp.id===ownerId));
+    H.rsms.forEach(r=>emitRow(rsmRows.get(r.id)));
+    H.vps.forEach(v=>emitRow(vpRows.get(v.id)));
+    emitRow(presRow);
+    
+    window.lastCommissionTotal = grand;
+
+    const periodRevenue=totalRevenue * ordersPerPeriod;
+    $('#pctOfRev').textContent = periodRevenue > 0 ? pct(100 * grand / periodRevenue) : '0.00%';
+    $('#grandTotalPayout').textContent = money(grand);
+    const packsInPeriod=totalPacks * ordersPerPeriod;
+    const pillsInPeriod=packsInPeriod*(O.pillsPerPack||0);
+    $('#commPerPack').textContent=packsInPeriod>0?money(grand/packsInPeriod):'$0.00';
+    $('#commPerPill').textContent=pillsInPeriod>0?money(grand/pillsInPeriod):'$0.00';
+  }
+
+  // Reactivity
+  ['input','change'].forEach(evt=>document.body.addEventListener(evt, ()=>{ compute(); }));
+  const periodEl = $('#projPeriod'); if(periodEl){ periodEl.addEventListener('change', compute); }
+
+  // Seed defaults (1 VP, 1 RSM, 1 SP @ 100%)
+  (function init(){
+    // Containers must exist
+    if(!$('#vpContainer')){ const wrap=document.createElement('div'); wrap.id='vpContainer'; $('#commission_hierarchy').appendChild(wrap); }
+    if(!$('#rsmContainer')){ const wrap=document.createElement('div'); wrap.id='rsmContainer'; $('#commission_hierarchy').appendChild(wrap); }
+    if(!$('#spContainer')){ const wrap=document.createElement('div'); wrap.id='spContainer'; $('#commission_hierarchy').appendChild(wrap); }
+    // Add defaults
+    addVP('Vice President 1', 2, 8000);
+    addRSM('Regional Sales Manager 1', 3, 5000);
+    addSP('Salesperson 1', 10, 2500, 100);
+    $('#presBase').value = 10000;
+    compute();
+  })();
+})();
+</script>
+</body>
+</html>
+
