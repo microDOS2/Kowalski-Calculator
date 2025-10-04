@@ -1257,6 +1257,7 @@ const ALL_COLUMNS = [
     { key: 'comm_pctOfRev', label: 'Comm. % of Revenue', tooltip: 'The percentage of total revenue paid out as commission.' },
     { key: 'comm_perPack', label: 'Comm. per Pack', tooltip: 'The total commission cost allocated to a single pack.' },
     { key: 'comm_perPill', label: 'Comm. per Pill', tooltip: 'The total commission cost allocated to a single pill.' },
+    { key: 'comm_breakdown', label: 'Comm. Payout Breakdown', tooltip: 'Detailed breakdown of payouts for each role earning a commission.' },
     { key: 'load', label: 'Load', tooltip: 'Load this scenario\'s inputs.'}
 ];
 
@@ -1273,6 +1274,7 @@ function scenarioFromCurrent(C){
   const S = C.S;
   const poTotals = calculatePurchaseOrderTotals(C).grandTotals;
   const commProjections = window.lastCommissionProjections || {};
+  const commBreakdown = window.lastCommissionBreakdown || [];
   const row = {};
 
   // Meta
@@ -1350,6 +1352,7 @@ function scenarioFromCurrent(C){
   row.comm_pctOfRev = commProjections.pctOfRev;
   row.comm_perPack = commProjections.commPerPack;
   row.comm_perPill = commProjections.commPerPill;
+  row.comm_breakdown = commBreakdown.map(r => `${r.name}: ${money(r.total)} (Bonus: ${money(r.bonus)}, Override: ${money(r.override)})`).join(' | ');
 
   // Inputs object for restoring state
   row.__inputs = {
@@ -1458,7 +1461,7 @@ const GROUPS = {
     'Per Pill Metrics': ['costPerPill', 'profitPerPillR', 'profitPerPillW', 'profitPerPillD', 'overheadPerPill'],
     'Break-Even Analysis': ['be_units_R', 'be_rev_R', 'be_units_W', 'be_rev_W', 'be_units_D', 'be_rev_D', 'be_units_B', 'be_rev_B'],
     'Purchase Order Analysis': ['po_totalQty', 'po_retailProfit', 'po_wholesaleProfit', 'po_distributorProfit', 'po_totalProfit', 'po_netImpact', 'po_avgCostPerPill', 'po_avgProfitPerPill'],
-    'Commission Projections': ['comm_grandTotalPayout', 'comm_pctOfRev', 'comm_perPack', 'comm_perPill']
+    'Commission Projections': ['comm_grandTotalPayout', 'comm_pctOfRev', 'comm_perPack', 'comm_perPill', 'comm_breakdown']
 };
 function openCaptureModal(){
   wireTips(calc()); // Ensure tooltips are populated
@@ -1803,9 +1806,7 @@ function boot(){
     render();
 }
 boot();
-</script>
 
-<script>
 (function(){
   const $ = (s, el=document)=>el.querySelector(s);
   const $$ = (s, el=document)=>Array.from(el.querySelectorAll(s));
@@ -1828,6 +1829,7 @@ boot();
   let lastOrder = null; // {packsR,packsW,packsD,priceR,priceW,priceD,pillsPerPack}
   window.lastCommissionTotal = 0;
   window.lastCommissionProjections = {}; // To store latest projection results
+  window.lastCommissionBreakdown = []; // To store detailed breakdown
   function readOrderFromHidden(){
     const val = id => Number($(id))||0;
     const gv = id => { const el=$(id); return el? Number(el.value||el.textContent||0):0; };
@@ -1979,6 +1981,7 @@ boot();
 
   // Compute
   function compute(){
+    window.lastCommissionBreakdown = []; // Reset on each compute
     const O = (function(){ const o=getOrder(); return Object.assign({}, o, { revR:o.packsR*o.priceR, revW:o.packsW*o.priceW, revD:o.packsD*o.priceD }); })();
     const H = readHierarchy();
     
@@ -2045,6 +2048,16 @@ boot();
     // Render table (use your existing tbody id)
     const body=$('#proj_body_hierarchical'); body.innerHTML=''; let grand=0; const ownerId=H.ownerId;
     function emitRow(obj, highlight=false){ const total=obj.base+obj.bonus+obj.override; grand+=total; const tr=document.createElement('tr'); if(highlight){ tr.classList.add('owner'); }
+      
+      if (total > 0) {
+          window.lastCommissionBreakdown.push({
+              name: obj.name,
+              bonus: obj.bonus,
+              override: obj.override,
+              total: total
+          });
+      }
+
       const singleOrderOverride = ordersPerPeriod > 0 ? obj.override / ordersPerPeriod : 0;
       const singleOrderBonus = ordersPerPeriod > 0 ? obj.bonus / ordersPerPeriod : 0;
       tr.innerHTML=`<td>${highlight?'★ ':''}${obj.name}</td><td>${money(obj.base)}</td><td>${obj.roleType==='salesperson' ? money(obj.bonus) : '-'}</td><td>${money(obj.override)}</td><td>${money(total)}</td>`;
