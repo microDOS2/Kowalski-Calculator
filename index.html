@@ -32,18 +32,37 @@
       "name pills price price"
       "ing inner outer ."
       "d-cost d-packs s-cost s-packs"
-      "mix mix mix mix"
+      "mix mix mix mix-total"
       "rm rm rm rm";
   }
   .sku-card .rm { grid-area: rm; justify-self: start; }
+  .sku-card .mix-total { grid-area: mix-total; align-self: end; }
   label{ display:block; margin:0 0 6px; font-size:12px; color:GrayText }
-  input[type="text"],input[type="number"],select{ width:100%; padding:9px 10px; border-radius:10px; border:1px solid ButtonBorder; background:Field; color:FieldText; font-size:14px }
-  input[readonly]{ background: color-mix(in srgb, Field 92%, CanvasText 8%); color: color-mix(in srgb, FieldText 70%, CanvasText 30%) }
-  .btn{ appearance:none; border:1px solid ButtonBorder; background:ButtonFace; color:ButtonText; padding:8px 12px; border-radius:10px; font-size:13px; cursor:pointer }
+  
+  /* Input vs Output styling */
+  input:not([readonly]), select {
+    background: Window;
+    border: 1px solid AccentColor;
+  }
+  input[readonly]{ 
+    background: #eee;
+    color: #333;
+    border-color: ButtonBorder;
+  }
+  @media (prefers-color-scheme: dark) {
+    input[readonly] {
+      background: #333;
+      color: #ccc;
+    }
+  }
+
+  .btn{ appearance:none; border:1px solid ButtonBorder; background:ButtonFace; color:ButtonText; padding:8px 12px; border-radius:10px; font-size:13px; cursor:pointer; transition: background-color 0.2s ease, border-color 0.2s ease; }
   .btn.primary{ background:AccentColor; color:AccentColorText; border-color:AccentColor }
   .btn.small{ font-size:12px; padding:6px 10px }
   .btn.danger{ border-color:#a00; color:#a00; background:transparent }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .chip{ background: color-mix(in srgb, Field 85%, CanvasText 15%); border:1px solid ButtonBorder; padding:4px 8px; border-radius:999px; font-size:12px; color: GrayText }
+  .status-chip { transition: background-color 0.5s ease; }
   .card{ background:Field; border:1px solid ButtonBorder; border-radius:12px; padding:10px; transition: opacity 0.3s ease; display:flex; flex-direction:column; gap:10px; }
   .kpi{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
   .big{ font-weight:700; font-size:19px }
@@ -58,6 +77,8 @@
   table{ width:100%; border-collapse:collapse; font-size:13px }
   th,td{ padding:8px 10px; border-bottom:1px solid ButtonBorder; text-align:right; white-space:nowrap }
   th:first-child,td:first-child{ text-align:left }
+  
+  /* Reverted Collapsible Section Styles to simple div cards */
   #thirdPartySection details {
     border: 1px solid ButtonBorder;
     border-radius: 10px;
@@ -78,27 +99,33 @@
   #thirdPartySection .company-content {
     padding: 0 10px 10px;
   }
-  #thirdPartySection table {
-    font-size: 12px;
-  }
-  #thirdPartySection table td, #thirdPartySection table th {
-    padding: 6px 8px;
-  }
-  #thirdPartySection input[type="number"] {
-    width: 120px;
-    padding: 6px 8px;
-    font-size: 12px;
-  }
-  #thirdPartyCostSummary {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 10px;
-  }
+  
+  #thirdPartySection table { font-size: 12px; }
+  #thirdPartySection table td, #thirdPartySection table th { padding: 6px 8px; }
+  #thirdPartySection input[type="number"] { width: 120px; padding: 6px 8px; font-size: 12px; }
+  #thirdPartyCostSummary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
   .owner{ font-weight:700 }
   #skuRows { display: flex; flex-direction: column; gap: 10px; }
   #orderComposition { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
   #monthlyVolumePerSku { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+  
+  /* Percentage total styles */
+  .percent-total { font-size: 12px; font-weight: bold; }
+  .percent-total.ok { color: green; }
+  .percent-total.error { color: red; }
+
+  /* Hierarchy Visualizer */
+  #commission_visualizer {
+      background: color-mix(in srgb, Field 95%, CanvasText 5%);
+      border: 1px solid ButtonBorder;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 13px;
+  }
+  #commission_visualizer ul { margin: 0; padding-left: 20px; }
+  #commission_visualizer li { margin: 4px 0; }
+  #commission_visualizer a { cursor: pointer; text-decoration: underline; color: AccentColor; }
+
 </style>
 </head><body>
 <header>
@@ -106,7 +133,7 @@
     <div class="row" style="gap:8px">
       <strong>KOWALKSI's KALCULATOR</strong>
       <span class="chip" id="fmt_demo">Money format…</span>
-      <span class="chip" id="status">Ready</span>
+      <span class="chip status-chip" id="status">Ready</span>
     </div>
     <div class="row">
       <button id="btn_choose_cols" class="btn">Choose columns</button>
@@ -364,7 +391,10 @@
           <h3>Salespersons (splits supported)</h3>
           <button id="addSP" class="btn" title="Add another Salesperson">Add Salesperson</button>
         </div>
-        <div class="muted">Enter <strong>Share percent</strong> per salesperson. Total will auto‑balance to <strong>100%</strong>. If all are zero, the engine even‑splits.</div>
+        <div class="row">
+            <div class="muted">Enter <strong>Share percent</strong> per salesperson. Total will auto‑balance to <strong>100%</strong>.</div>
+            <span id="spShareTotal" class="percent-total"></span>
+        </div>
         <div id="spContainer"></div>
       </div>
     </section>
@@ -374,7 +404,8 @@
       <h2>Commission Projections</h2>
        <div class="row">
         <div><label>Order total $ Amount</label><input id="orderTotalDisplay3" type="text" readonly></div>
-    </div>
+       </div>
+      <div id="commission_visualizer"></div>
       <div class="row">
         <div class="w-160" data-tip="comm_period_view"><label>Projection Period</label>
           <select id="projPeriod"><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option selected>Yearly</option></select>
@@ -447,7 +478,7 @@
       </div>
       <div class="row">
         <input id="scenario_label" class="w-160" type="text" placeholder="Scenario label">
-        <button id="btn_save" class="btn primary">Save scenario</button>
+        <button id="btn_save" class="btn primary" disabled>Save scenario</button>
         <button id="btn_csv" class="btn">Download CSV</button>
         <button id="btn_clear" class="btn">Clear all</button>
       </div>
@@ -462,13 +493,20 @@
 </div>
 <div id="tip" class="tip"></div>
 <div id="modal" style="display:none; position:fixed; inset:0; background:color-mix(in srgb, Canvas 70%, CanvasText 30%); align-items:center; justify-content:center; z-index:50">
-  <div style="background:Field; border:1px solid ButtonBorder; border-radius:16px; padding:16px; width:min(980px, 92vw); max-height:85vh; overflow:auto; display:flex; flex-direction:column; gap:12px">
+  <div id="modal_content" style="background:Field; border:1px solid ButtonBorder; border-radius:16px; padding:16px; width:min(980px, 92vw); max-height:85vh; overflow:auto; display:flex; flex-direction:column; gap:12px">
     <div class="row" style="justify-content:space-between"><strong>Choose columns to capture</strong><button id="modal_close" class="btn small">Close</button></div>
     <div id="cols_groups" class="grid-3" style="align-items: flex-start;"></div>
     <div class="row" style="justify-content:flex-end">
       <input id="cap_name" class="w-220" placeholder="Name this capture (e.g., Sales Focus)">
       <button id="save_capture" class="btn primary">Save capture</button>
     </div>
+  </div>
+  <div id="confirmation_modal_content" style="display:none; background:Field; border:1px solid ButtonBorder; border-radius:16px; padding:16px; width:min(400px, 92vw); display:flex; flex-direction:column; gap:16px;">
+      <p id="confirmation_message"></p>
+      <div class="row" style="justify-content:flex-end">
+          <button id="confirm_no" class="btn">Cancel</button>
+          <button id="confirm_yes" class="btn primary">Yes</button>
+      </div>
   </div>
 </div>
 <script>
@@ -549,11 +587,12 @@ function makeSkuRow(p){
     <div style="grid-area: s-cost"><label>Shipping Box Cost</label><input class="shippingBoxCost" type="number" step="0.01" value="${p.shippingBox}" data-tip="shippingBoxCost_input"></div>
     <div style="grid-area: s-packs"><label>Packs per Ship Box</label><input class="packsPerShipBox" type="number" value="${p.packsPerShipBox}" data-tip="packsPerShipBox_input"></div>
 
-    <div style="grid-area: mix" class="grid-3" data-tip="sku_mix_input">
-      <div><label>% Retail</label><input class="skuMixR" type="number" value="${p.mixR}"></div>
-      <div><label>% Wholesale</label><input class="skuMixW" type="number" value="${p.mixW}"></div>
-      <div><label>% Distributor</label><input class="skuMixD" type="number" value="${p.mixD}"></div>
+    <div style="grid-area: mix" class="row">
+        <div><label>% Retail</label><input class="skuMixR" type="number" value="${p.mixR}"></div>
+        <div><label>% Wholesale</label><input class="skuMixW" type="number" value="${p.mixW}"></div>
+        <div><label>% Distributor</label><input class="skuMixD" type="number" value="${p.mixD}"></div>
     </div>
+    <div class="mix-total"><span class="percent-total"></span></div>
 
     <div class="rm"><button class="btn small">Remove</button></div>
   `;
@@ -592,6 +631,7 @@ $('#add_sku').onclick = ()=>{
     })); 
     updateOrderComposition(); 
     updateMonthlyVolumeInputs();
+    updateAllSkuMixTotals();
     if($('#autoCalc').checked) render(); 
 };
 $('#calc_order').onclick = render;
@@ -952,7 +992,11 @@ function render(){
   // scenarios UI
   drawScenarioTableHeaders();
   drawScenarioRows();
-  $('#status').textContent = 'Calculated ' + new Date().toLocaleString();
+
+  const statusChip = $('#status');
+  statusChip.textContent = 'Calculated ' + new Date().toLocaleTimeString();
+  statusChip.style.backgroundColor = 'lightgreen';
+  setTimeout(() => { statusChip.style.backgroundColor = ''; }, 500);
 }
 function wireTips(C){
   const S=C.S; const ship = S.includeShip? money3(C.shipPerPack)+' per pack' : '$0 not included';
@@ -1183,7 +1227,8 @@ function enforceSkuMix(changedInput) {
     if (diff.toFixed(1) != 0.0 && otherInputs.length > 0) {
         otherInputs[0].value = (num(otherInputs[0].value) + diff).toFixed(1);
     }
-     if ($('#autoCalc').checked) render();
+    updateSkuMixTotal(card);
+    if ($('#autoCalc').checked) render();
 }
 // ===== Scenarios (v7) + captures + migration =====
 const LS_KEY='channel_calc_scenarios_v7';
@@ -1374,7 +1419,7 @@ function drawScenarioRows(){
   const body=$('#scenarios_body');
   body.innerHTML='';
   const list=loadScenarios();
-  list.forEach((r)=>{
+  list.forEach((r, index)=>{
     const tr=document.createElement('tr');
     SCENARIO_TABLE_KEYS.forEach(key=>{
       const td=document.createElement('td');
@@ -1385,7 +1430,11 @@ function drawScenarioRows(){
     const btn=document.createElement('button');
     btn.className='btn small';
     btn.textContent='Load';
-    btn.onclick=()=> restoreScenario(r.__inputs||{});
+    btn.onclick=()=> {
+        showConfirmation('Are you sure you want to load this scenario? Any unsaved changes will be lost.', () => {
+            restoreScenario(r.__inputs||{});
+        });
+    };
     td.appendChild(btn);
     tr.appendChild(td);
     body.appendChild(tr)
@@ -1446,9 +1495,20 @@ function restoreScenario(inputs){
     window.restoreCommissionState(inputs.commissionState);
   }
 
+  hasUnsavedChanges = false;
+  updateSaveButtonState();
   render();
 }
-function onSaveScenario(){ const C=calc(); const row=scenarioFromCurrent(C); const list=loadScenarios(); list.unshift(row); saveScenarios(list); drawScenarioRows() }
+function onSaveScenario(){ 
+    const C=calc(); 
+    const row=scenarioFromCurrent(C); 
+    const list=loadScenarios(); 
+    list.unshift(row); 
+    saveScenarios(list); 
+    drawScenarioRows();
+    hasUnsavedChanges = false;
+    updateSaveButtonState();
+}
 function toCSV(){ const list=loadScenarios(); if(!list.length){ alert('No scenarios saved.'); return } const keys=SCENARIO_TABLE_KEYS.filter(c=>c !== 'load'); const header=keys.map(k => (ALL_COLUMNS.find(c=>c.key===k) || {}).label).join(','); const rows=list.map(r=> keys.map(k=> (r[k]??'').toString().replace(/\"/g,'""')).map(x=>'"'+x+'"').join(',')); const csv=[header, ...rows].join('\n'); const blob=new Blob([csv], {type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='scenarios.csv'; a.click(); URL.revokeObjectURL(url) }
 // Capture modal
 const GROUPS = {
@@ -1483,6 +1543,8 @@ function openCaptureModal(){
     });
     host.appendChild(card);
   }
+  $('#modal_content').style.display = 'flex';
+  $('#confirmation_modal_content').style.display = 'none';
   $('#modal').style.display='flex';
 }
 function saveCapture(){ const name = ($('#cap_name').value||'').trim() || 'Custom capture'; const keys=[]; Object.values(GROUPS).flat().forEach(k=>{ if($('#col_'+k).checked) keys.push(k) }); CAPTURES[name]=keys; const opt=document.createElement('option'); opt.value=name; opt.textContent=name; $('#capture_sel').appendChild(opt); $('#capture_sel').value=name; $('#modal').style.display='none' }
@@ -1708,9 +1770,67 @@ function wirePOEvents() {
     $('#be_include_overhead').addEventListener('change', render);
 }
 // ===== END: Purchase Order Logic =====
+// ===== Unsaved Changes & Confirmation Modal =====
+let hasUnsavedChanges = false;
+let confirmCallback = null;
+
+function updateSaveButtonState() {
+    const btn = $('#btn_save');
+    if (hasUnsavedChanges) {
+        btn.disabled = false;
+    } else {
+        btn.disabled = true;
+    }
+}
+
+function showConfirmation(message, onConfirm) {
+    $('#confirmation_message').textContent = message;
+    $('#modal_content').style.display = 'none';
+    $('#confirmation_modal_content').style.display = 'flex';
+    $('#modal').style.display = 'flex';
+    confirmCallback = onConfirm;
+}
+
+$('#confirm_yes').onclick = () => {
+    if (confirmCallback) confirmCallback();
+    $('#modal').style.display = 'none';
+    confirmCallback = null;
+};
+$('#confirm_no').onclick = () => {
+    $('#modal').style.display = 'none';
+    confirmCallback = null;
+};
+
+// ===== Percentage Total Updaters =====
+function updateSkuMixTotal(card) {
+    const totalEl = card.querySelector('.percent-total');
+    if (!totalEl) return;
+    const r = num(card.querySelector('.skuMixR').value);
+    const w = num(card.querySelector('.skuMixW').value);
+    const d = num(card.querySelector('.skuMixD').value);
+    const total = r + w + d;
+    totalEl.textContent = `Total: ${total.toFixed(1)}%`;
+    totalEl.className = `percent-total ${total.toFixed(1) == 100.0 ? 'ok' : 'error'}`;
+}
+
+function updateAllSkuMixTotals() {
+    $$('.sku-card').forEach(updateSkuMixTotal);
+}
+
+function updateShareTotal() {
+    const totalEl = $('#spShareTotal');
+    if (!totalEl) return;
+    const total = $$('.spShare').reduce((sum, el) => sum + num(el.value), 0);
+    totalEl.textContent = `Total: ${total.toFixed(1)}%`;
+    totalEl.className = `percent-total ${total.toFixed(1) == 100.0 ? 'ok' : 'error'}`;
+}
+
 // ===== Events =====
 function wireInputs(){
     document.addEventListener('input', e => {
+        hasUnsavedChanges = true;
+        updateSaveButtonState();
+
         const t = e.target;
 
         if (t.classList.contains('pills')) {
@@ -1731,6 +1851,10 @@ function wireInputs(){
         if (t.classList.contains('skuMixR') || t.classList.contains('skuMixW') || t.classList.contains('skuMixD')) {
             enforceSkuMix(t);
         }
+        
+        if(t.classList.contains('spShare')) {
+            updateShareTotal();
+        }
 
         if (t.id === 'includeThirdParty' && $('#autoCalc').checked) {
             render();
@@ -1748,7 +1872,12 @@ function wireInputs(){
     $('#recalcBtn').onclick = render;
     $('#btn_save').onclick = onSaveScenario;
     $('#btn_csv').onclick = toCSV;
-    $('#btn_clear').onclick = ()=>{ localStorage.removeItem(LS_KEY); drawScenarioRows() };
+    $('#btn_clear').onclick = ()=>{ 
+        showConfirmation('Are you sure you want to clear all saved scenarios? This action cannot be undone.', () => {
+            localStorage.removeItem(LS_KEY); 
+            drawScenarioRows();
+        });
+    };
     $('#btn_choose_cols').onclick = openCaptureModal;
     $('#modal_close').onclick = ()=> $('#modal').style.display='none';
     $('#save_capture').onclick = saveCapture;
@@ -1795,6 +1924,8 @@ function boot(){
     wireInputs();
     migrateOld();
     updateChannelStates();
+    updateSaveButtonState();
+    updateAllSkuMixTotals();
 
     // --- Third Party Section Initialization ---
     buildThirdPartySection();
@@ -1844,83 +1975,86 @@ boot();
   // ------- Dynamic role cards (with delete) -------
   let vpId=0, rsmId=0, spId=0;
   function vpCard(p={name:'Vice President 1', pctVal:2, base:0, chans:{R:true,W:true,D:true}}){
-    const d=document.createElement('div'); d.className='card'; d.dataset.id=++vpId;
+    const d=document.createElement('div'); d.className='card'; d.dataset.id=++vpId; d.id = `vp-card-${d.dataset.id}`;
     d.innerHTML=`
-      <div class="row" style="justify-content:space-between; align-items:center">
-        <strong class="vpTitle">${p.name}</strong>
-        <button class="btn danger vpRemove" title="Delete this Vice President">Remove</button>
-      </div>
-      <div class="grid-4">
-        <div><label>Name</label><input class="vpName" value="${p.name}" data-tip="comm_name"></div>
-        <div data-tip="comm_channels"><label>Channels</label>
-          <div class="row">
-            <label class="row"><input class="vpR" type="checkbox" ${p.chans.R?'checked':''}> Retail</label>
-            <label class="row"><input class="vpW" type="checkbox" ${p.chans.W?'checked':''}> Wholesale</label>
-            <label class="row"><input class="vpD" type="checkbox" ${p.chans.D?'checked':''}> Distributor</label>
-          </div>
+        <div class="row" style="justify-content:space-between; align-items:center">
+            <strong class="vpTitle">${p.name}</strong>
+            <button class="btn danger vpRemove" title="Delete this Vice President">Remove</button>
         </div>
-        <div data-tip="comm_val"><label>Override value (%)</label><input class="vpPct" type="number" step="0.01" value="${p.pctVal}"></div>
-        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="vpBase" type="number" step="0.01" value="${p.base}"></div>
-      </div>`;
+        <div class="grid-4">
+          <div><label>Name</label><input class="vpName" value="${p.name}" data-tip="comm_name"></div>
+          <div data-tip="comm_channels"><label>Channels</label>
+            <div class="row">
+              <label class="row"><input class="vpR" type="checkbox" ${p.chans.R?'checked':''}> Retail</label>
+              <label class="row"><input class="vpW" type="checkbox" ${p.chans.W?'checked':''}> Wholesale</label>
+              <label class="row"><input class="vpD" type="checkbox" ${p.chans.D?'checked':''}> Distributor</label>
+            </div>
+          </div>
+          <div data-tip="comm_val"><label>Override value (%)</label><input class="vpPct" type="number" step="0.01" value="${p.pctVal}"></div>
+          <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="vpBase" type="number" step="0.01" value="${p.base}"></div>
+        </div>`;
     d.querySelector('.vpRemove').onclick=()=>{ if(true){ d.remove(); refreshAssignments(); compute(); } };
+    d.querySelector('.vpName').addEventListener('input', e => { d.querySelector('.vpTitle').textContent = e.target.value; });
     return d;
   }
   function rsmCard(p={name:'Regional Sales Manager 1', pctVal:3, base:0, chans:{R:true,W:true,D:true}, vpId:''}){
-    const d=document.createElement('div'); d.className='card'; d.dataset.id=++rsmId;
+    const d=document.createElement('div'); d.className='card'; d.dataset.id=++rsmId; d.id = `rsm-card-${d.dataset.id}`;
     d.innerHTML=`
-      <div class="row" style="justify-content:space-between; align-items:center">
-        <strong class="rsmTitle">${p.name}</strong>
-        <button class="btn danger rsmRemove" title="Delete this Regional Sales Manager">Remove</button>
-      </div>
-      <div class="grid-4">
-        <div><label>Name</label><input class="rsmName" value="${p.name}" data-tip="comm_name"></div>
-        <div data-tip="comm_assign_vp"><label>Assign to Vice President</label><select class="rsmVP" data-selected="${p.vpId}"></select></div>
-        <div data-tip="comm_val"><label>Override value (%)</label><input class="rsmPct" type="number" step="0.01" value="${p.pctVal}"></div>
-        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="rsmBase" type="number" step="0.01" value="${p.base}"></div>
-      </div>
-      <div data-tip="comm_channels">
-        <label>Channels</label>
-        <div class="row">
-          <label class="row"><input class="rsmR" type="checkbox" ${p.chans.R?'checked':''}> Retail</label>
-          <label class="row"><input class="rsmW" type="checkbox" ${p.chans.W?'checked':''}> Wholesale</label>
-          <label class="row"><input class="rsmD" type="checkbox" ${p.chans.D?'checked':''}> Distributor</label>
+        <div class="row" style="justify-content:space-between; align-items:center">
+            <strong class="rsmTitle">${p.name}</strong>
+            <button class="btn danger rsmRemove" title="Delete this Regional Sales Manager">Remove</button>
         </div>
-      </div>`;
+        <div class="grid-4">
+            <div><label>Name</label><input class="rsmName" value="${p.name}" data-tip="comm_name"></div>
+            <div data-tip="comm_assign_vp"><label>Assign to Vice President</label><select class="rsmVP" data-selected="${p.vpId}"></select></div>
+            <div data-tip="comm_val"><label>Override value (%)</label><input class="rsmPct" type="number" step="0.01" value="${p.pctVal}"></div>
+            <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="rsmBase" type="number" step="0.01" value="${p.base}"></div>
+        </div>
+        <div data-tip="comm_channels">
+            <label>Channels</label>
+            <div class="row">
+              <label class="row"><input class="rsmR" type="checkbox" ${p.chans.R?'checked':''}> Retail</label>
+              <label class="row"><input class="rsmW" type="checkbox" ${p.chans.W?'checked':''}> Wholesale</label>
+              <label class="row"><input class="rsmD" type="checkbox" ${p.chans.D?'checked':''}> Distributor</label>
+            </div>
+        </div>`;
     d.querySelector('.rsmRemove').onclick=()=>{ if(true){ const id=d.dataset.id; d.remove(); $$('#spContainer .card').forEach(s=>{ const sel=$('.spRSM',s); if(sel.value===id){ sel.value=''; } }); refreshAssignments(); compute(); } };
+    d.querySelector('.rsmName').addEventListener('input', e => { d.querySelector('.rsmTitle').textContent = e.target.value; });
     return d;
   }
   function spCard(p={name:'Salesperson 1', pctVal:10, base:0, share:100, chans:{R:true,W:true,D:true}, rsmId:'', bonusOrder:{amt:0,units:0,rev:0}, bonusPeriod:{amt:0,units:0,rev:0}}){
-    const d=document.createElement('div'); d.className='card'; d.dataset.id=++spId;
+    const d=document.createElement('div'); d.className='card'; d.dataset.id=++spId; d.id = `sp-card-${d.dataset.id}`;
     d.innerHTML=`
-      <div class="row" style="justify-content:space-between; align-items:center">
-        <strong class="spTitle">${p.name}</strong>
-        <button class="btn danger spRemove" title="Delete this Salesperson">Remove</button>
-      </div>
-      <div class="grid-5">
-        <div><label>Name</label><input class="spName" value="${p.name}" data-tip="comm_name"></div>
-        <div data-tip="comm_assign_rsm"><label>Assign to Regional Sales Manager</label><select class="spRSM" data-selected="${p.rsmId}"></select></div>
-        <div data-tip="comm_val"><label>Commission value (%)</label><input class="spPct" type="number" step="0.01" value="${p.pctVal}"></div>
-        <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="spBase" type="number" step="0.01" value="${p.base}"></div>
-        <div data-tip="comm_sp_share"><label>Share percent of order</label><input class="spShare" type="number" step="0.01" value="${p.share}"></div>
-      </div>
-      <div class="row" data-tip="comm_channels">
-        <label class="row"><input class="spR" type="checkbox" ${p.chans.R?'checked':''}> Retail</label>
-        <label class="row"><input class="spW" type="checkbox" ${p.chans.W?'checked':''}> Wholesale</label>
-        <label class="row"><input class="spD" type="checkbox" ${p.chans.D?'checked':''}> Distributor</label>
-      </div>
-      <div class="grid-4" data-tip="comm_bonus_order">
-        <div><label>Order‑tied bonus amount ($)</label><input class="bonusOrderAmt" type="number" step="0.01" value="${p.bonusOrder.amt}"></div>
-        <div><label>Trigger: min units (packs)</label><input class="bonusOrderUnits" type="number" value="${p.bonusOrder.units}"></div>
-        <div><label>Trigger: min revenue ($)</label><input class="bonusOrderRev" type="number" step="0.01" value="${p.bonusOrder.rev}"></div>
-        <div></div>
-      </div>
-      <div class="grid-4" data-tip="comm_bonus_period">
-        <div><label>Period‑tied bonus amount ($)</label><input class="bonusPeriodAmt" type="number" step="0.01" value="${p.bonusPeriod.amt}"></div>
-        <div><label>Trigger: min units (packs)</label><input class="bonusPeriodUnits" type="number" value="${p.bonusPeriod.units}"></div>
-        <div><label>Trigger: min revenue ($)</label><input class="bonusPeriodRev" type="number" step="0.01" value="${p.bonusPeriod.rev}"></div>
-        <div></div>
-      </div>`;
+        <div class="row" style="justify-content:space-between; align-items:center">
+            <strong class="spTitle">${p.name}</strong>
+            <button class="btn danger spRemove" title="Delete this Salesperson">Remove</button>
+        </div>
+        <div class="grid-5">
+            <div><label>Name</label><input class="spName" value="${p.name}" data-tip="comm_name"></div>
+            <div data-tip="comm_assign_rsm"><label>Assign to Regional Sales Manager</label><select class="spRSM" data-selected="${p.rsmId}"></select></div>
+            <div data-tip="comm_val"><label>Commission value (%)</label><input class="spPct" type="number" step="0.01" value="${p.pctVal}"></div>
+            <div data-tip="comm_base"><label>Base Salary (per month)</label><input class="spBase" type="number" step="0.01" value="${p.base}"></div>
+            <div data-tip="comm_sp_share"><label>Share percent of order</label><input class="spShare" type="number" step="0.01" value="${p.share}"></div>
+        </div>
+        <div class="row" data-tip="comm_channels">
+            <label class="row"><input class="spR" type="checkbox" ${p.chans.R?'checked':''}> Retail</label>
+            <label class="row"><input class="spW" type="checkbox" ${p.chans.W?'checked':''}> Wholesale</label>
+            <label class="row"><input class="spD" type="checkbox" ${p.chans.D?'checked':''}> Distributor</label>
+        </div>
+        <div class="grid-4" data-tip="comm_bonus_order">
+            <div><label>Order‑tied bonus amount ($)</label><input class="bonusOrderAmt" type="number" step="0.01" value="${p.bonusOrder.amt}"></div>
+            <div><label>Trigger: min units (packs)</label><input class="bonusOrderUnits" type="number" value="${p.bonusOrder.units}"></div>
+            <div><label>Trigger: min revenue ($)</label><input class="bonusOrderRev" type="number" step="0.01" value="${p.bonusOrder.rev}"></div>
+            <div></div>
+        </div>
+        <div class="grid-4" data-tip="comm_bonus_period">
+            <div><label>Period‑tied bonus amount ($)</label><input class="bonusPeriodAmt" type="number" step="0.01" value="${p.bonusPeriod.amt}"></div>
+            <div><label>Trigger: min units (packs)</label><input class="bonusPeriodUnits" type="number" value="${p.bonusPeriod.units}"></div>
+            <div><label>Trigger: min revenue ($)</label><input class="bonusPeriodRev" type="number" step="0.01" value="${p.bonusPeriod.rev}"></div>
+            <div></div>
+        </div>`;
     d.querySelector('.spRemove').onclick=()=>{ if(true){ d.remove(); refreshAssignments(); normalizeSharesEven(); compute(); } };
+    d.querySelector('.spName').addEventListener('input', e => { d.querySelector('.spTitle').textContent = e.target.value; });
     d.addEventListener('input',(e)=>{ if(e.target.classList.contains('spShare')){ autoBalanceShares(e.target); compute(); } });
     return d;
   }
@@ -1943,6 +2077,7 @@ boot();
         const selected = sel.dataset.selected;
         sel.innerHTML=vpOpts; 
         if(selected) sel.value = selected;
+        sel.removeAttribute('data-selected');
     });
     const rsmOpts=['<option value="">—</option>'].concat($$('#rsmContainer .card').map(r=>`<option value="${r.dataset.id}">${$('.rsmName',r).value||'Regional Sales Manager'}</option>`)).join('');
     $$('#spContainer .card').forEach(s=>{ 
@@ -1950,6 +2085,7 @@ boot();
         const selected = sel.dataset.selected;
         sel.innerHTML=rsmOpts; 
         if(selected) sel.value = selected;
+        sel.removeAttribute('data-selected');
     });
     const spOpts=['<option value="">— none —</option>'].concat($$('#spContainer .card').map(s=>`<option value="${s.dataset.id}">${$('.spName',s).value||'Salesperson'}</option>`)).join('');
     $('#ownerSelect').innerHTML=spOpts;
@@ -1959,6 +2095,7 @@ boot();
   function clamp(v,min,max){ return Math.min(max, Math.max(min, v)); }
   function autoBalanceShares(changed){
     const cards = $$('#spContainer .card'); if(cards.length===0) return;
+    updateShareTotal();
     if(cards.length===1){ $('.spShare',cards[0]).value='100'; return; }
     const changedVal = clamp(parseFloat(changed.value)||0, 0, 100); changed.value=(Math.round(changedVal*100)/100).toString();
     const others = cards.map(c=>$('.spShare',c)).filter(i=>i!==changed);
@@ -1967,7 +2104,16 @@ boot();
     if(sumOthers<=0){ const per=(100-changedVal)/others.length; others.forEach(i=>i.value=per.toFixed(2)); return; }
     const scale=(100-changedVal)/sumOthers; others.forEach(i=>{ const v=(parseFloat(i.value)||0)*scale; i.value=v.toFixed(2); });
   }
-  function normalizeSharesEven(){ const cards=$$('#spContainer .card'); if(cards.length===0) return; const sum=cards.reduce((s,c)=>s+(parseFloat($('.spShare',c).value)||0),0); if(sum===0){ const per=(100/cards.length); cards.forEach(c=>$('.spShare',c).value=per.toFixed(2)); } }
+  function normalizeSharesEven(){ 
+    const cards=$$('#spContainer .card'); 
+    if(cards.length===0) return; 
+    const sum=cards.reduce((s,c)=>s+(parseFloat($('.spShare',c).value)||0),0); 
+    if(sum===0){ 
+        const per=(100/cards.length); 
+        cards.forEach(c=>$('.spShare',c).value=per.toFixed(2)); 
+    }
+    updateShareTotal();
+  }
 
   // Read hierarchy
   function readHierarchy(){
@@ -1978,10 +2124,81 @@ boot();
     const ownerId=$('#ownerSelect').value||'';
     return { pres,vps,rsms,sps,ownerId };
   }
+  
+  // Hierarchy Visualizer
+  function renderHierarchyVisualizer() {
+      const H = readHierarchy();
+      const visualizer = $('#commission_visualizer');
+      let html = '<strong>Hierarchy Visualizer:</strong><ul>';
+      
+      const vpsByRsm = {};
+      H.rsms.forEach(r => {
+          if (!vpsByRsm[r.vpId]) vpsByRsm[r.vpId] = [];
+          vpsByRsm[r.vpId].push(r);
+      });
+
+      const rsmsBySp = {};
+      H.sps.forEach(sp => {
+          if (!rsmsBySp[sp.rsmId]) rsmsBySp[sp.rsmId] = [];
+          rsmsBySp[sp.rsmId].push(sp);
+      });
+
+      html += `<li>President of Sales</li>`;
+      html += '<ul>';
+      // Render VPs and their full teams
+      H.vps.forEach(v => {
+          html += `<li><a data-scroll-to="vp-card-${v.id}">${v.name}</a></li>`;
+          html += '<ul>';
+          (vpsByRsm[v.id] || []).forEach(r => {
+              html += `<li><a data-scroll-to="rsm-card-${r.id}">${r.name}</a></li>`;
+              html += '<ul>';
+              (rsmsBySp[r.id] || []).forEach(sp => {
+                   html += `<li><a data-scroll-to="sp-card-${sp.id}">${sp.name}</a> (${sp.share.toFixed(1)}%)</li>`;
+              });
+              html += '</ul>';
+          });
+          html += '</ul>';
+      });
+
+      // Render RSMs not assigned to a VP
+      const unassignedRsms = H.rsms.filter(r => !r.vpId);
+      if (unassignedRsms.length > 0) {
+          unassignedRsms.forEach(r => {
+              html += `<li><a data-scroll-to="rsm-card-${r.id}">${r.name}</a> <span class="muted">(Unassigned to VP)</span></li>`;
+              html += '<ul>';
+              (rsmsBySp[r.id] || []).forEach(sp => {
+                  html += `<li><a data-scroll-to="sp-card-${sp.id}">${sp.name}</a> (${sp.share.toFixed(1)}%)</li>`;
+              });
+              html += '</ul>';
+          });
+      }
+
+      // Render Salespersons not assigned to an RSM
+      const unassignedSps = H.sps.filter(sp => !sp.rsmId);
+      if (unassignedSps.length > 0) {
+          unassignedSps.forEach(sp => {
+              html += `<li><a data-scroll-to="sp-card-${sp.id}">${sp.name}</a> <span class="muted">(Unassigned to RSM)</span> (${sp.share.toFixed(1)}%)</li>`;
+          });
+      }
+
+      html += '</ul>';
+      visualizer.innerHTML = html;
+  }
+  $('#commission_visualizer').addEventListener('click', e => {
+      if (e.target.tagName === 'A' && e.target.dataset.scrollTo) {
+          e.preventDefault();
+          const targetEl = $(`#${e.target.dataset.scrollTo}`);
+          if (targetEl) {
+              if(targetEl.scrollIntoView) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+      }
+  });
+
 
   // Compute
   function compute(){
     window.lastCommissionBreakdown = []; // Reset on each compute
+    renderHierarchyVisualizer();
     const O = (function(){ const o=getOrder(); return Object.assign({}, o, { revR:o.packsR*o.priceR, revW:o.packsW*o.priceW, revD:o.packsD*o.priceD }); })();
     const H = readHierarchy();
     
